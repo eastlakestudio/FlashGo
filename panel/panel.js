@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
           chrome.tabs.onUpdated.removeListener(onUpdated);
           setTimeout(() => {
             chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors, delayMs: parseInt(delayInput.value) || 100 }).catch(()=>{});
-            verifyBtn.innerHTML = '▶ 验证序列';
+            verifyBtn.innerHTML = '▶ 验证操作';
             verifyBtn.disabled = false;
           }, 1500);
         }
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.tabs.onUpdated.addListener(onUpdated);
     } catch (err) {
       showStatus('刷新失败。', 'var(--danger)');
-      verifyBtn.innerHTML = '▶ 验证序列';
+      verifyBtn.innerHTML = '▶ 验证操作';
       verifyBtn.disabled = false;
     }
   });
