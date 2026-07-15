@@ -1,3 +1,5 @@
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+
 async function scheduleTask() {
   const { config } = await chrome.storage.local.get('config');
   if (!config) return;

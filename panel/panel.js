@@ -131,7 +131,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'START_PICKING' });
-      window.close(); // Close popup so user can pick
     } catch (err) {
       showStatus('请先刷新网页，或确保网页允许注入脚本。', '#ef4444');
     }
@@ -154,7 +153,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors });
-      window.close(); // Close popup to watch verification
     } catch (err) {
       showStatus('请先刷新网页，或确保网页允许注入脚本。', '#ef4444');
     }
