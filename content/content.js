@@ -260,6 +260,40 @@
   }
 
   async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+  
+  const HIGHLIGHT_DURATION = 1500;
+
+  // 添加辅助提示框
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed; top: 20px; right: 20px; z-index: 999999;
+    background: #3b82f6; color: white; padding: 12px 20px; border-radius: 8px;
+    font-family: sans-serif; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: all 0.3s; opacity: 0; pointer-events: none;
+  `;
+  toast.textContent = chrome.i18n.getMessage('startRunning') || 'FlashGo: Started...';
+  document.body.appendChild(toast);
+
+  function showToast(msg, isError = false) {
+    toast.textContent = msg;
+    toast.style.background = isError ? '#ef4444' : '#3b82f6';
+    toast.style.opacity = '1';
+    setTimeout(() => toast.style.opacity = '0', 3000);
+  }
+
+  // UI Notification for Success
+  function showSuccessToast() {
+    const successBox = document.createElement('div');
+    successBox.style.cssText = `
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 999999; background: #10b981; color: white; padding: 24px 40px;
+      border-radius: 12px; font-size: 24px; font-weight: bold; font-family: sans-serif;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); text-align: center;
+    `;
+    successBox.innerHTML = chrome.i18n.getMessage('buySuccess') || '🎉 Success!';
+    document.body.appendChild(successBox);
+    setTimeout(() => successBox.remove(), 6000);
+  }
 
   async function verifySequence(selectors, delayMs) {
     for (let i = 0; i < selectors.length; i++) {

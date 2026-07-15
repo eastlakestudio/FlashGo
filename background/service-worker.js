@@ -76,14 +76,14 @@ function scheduleAllTasks() {
       }
 
       // Update Toolbar Icon Title (Tooltip)
-      let titleStr = `🛒 MiaoGo 抢购管家\n\n📊 任务概览：\n • 总任务数：${totalTasks}\n • 等待执行：${scheduledCount}\n • 已过期/失败：${expiredCount}`;
+      let titleStr = `🛒 ${chrome.i18n.getMessage('appTitle')}\n\n${chrome.i18n.getMessage('overview')}\n • ${chrome.i18n.getMessage('totalTasks')}${totalTasks}\n • ${chrome.i18n.getMessage('waitingExec')}${scheduledCount}\n • ${chrome.i18n.getMessage('expiredFail')}${expiredCount}`;
       if (nextTaskInfo) {
         // 格式化时间，去掉秒
         const d = new Date(nextTaskInfo.time);
         const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        titleStr += `\n\n⏰ 下次启动：\n 📅 时间：${timeStr}\n 🎯 任务：${nextTaskInfo.name}`;
+        titleStr += `\n\n${chrome.i18n.getMessage('nextStartup')}\n ${chrome.i18n.getMessage('timeIs')}${timeStr}\n ${chrome.i18n.getMessage('taskIs')}${nextTaskInfo.name}`;
       } else {
-        titleStr += `\n\n⏰ 下次启动：\n 无待办任务`;
+        titleStr += `\n\n${chrome.i18n.getMessage('nextStartup')}\n ${chrome.i18n.getMessage('noPendingTask')}`;
       }
       chrome.action.setTitle({ title: titleStr });
     });

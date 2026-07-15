@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // i18n initialization
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.innerHTML = chrome.i18n.getMessage(el.getAttribute('data-i18n')) || el.innerHTML;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = chrome.i18n.getMessage(el.getAttribute('data-i18n-placeholder')) || el.placeholder;
+  });
+
   // 强制修复扩展侧边栏中 Flatpickr 时间滚轮失效的问题
-  document.addEventListener('wheel', (e) => {
     if (e.target.classList.contains('flatpickr-hour') || e.target.classList.contains('flatpickr-minute')) {
       e.preventDefault();
       const isUp = e.deltaY < 0;
@@ -217,45 +224,53 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tasks.length === 0) {
         tasksContainer.innerHTML = '<div style="color:var(--text-muted); font-size: 13px; text-align: center; margin-top: 40px;">暂无抢购任务，点击"新建任务"开始</div>';
         return;
-      }
-
+      
       // Sort: scheduled first, then draft, then completed/failed
       tasks.sort((a, b) => {
         const order = { 'scheduled': 0, 'draft': 1, 'failed': 2, 'completed': 3 };
         return (order[a.status] || 99) - (order[b.status] || 99);
       });
 
-      tasks.forEach(task => {
+      if (tasks.length === 0) {
+        tasksContainer.innerHTML = `<div class="empty-state">${chrome.i18n.getMessage('noTasks')}</div>`;
+        return;
+      }
+
+      tasksContainer.innerHTML = '';
+      tasks.forEach((task, index) => {
         const card = document.createElement('div');
         card.className = 'task-card';
-        
-        let statusText = '暂存';
-        let statusClass = 'status-draft';
-        if (task.status === 'scheduled') { statusText = '调度中'; statusClass = 'status-scheduled'; }
-        if (task.status === 'completed') { statusText = '已完成'; statusClass = 'status-completed'; }
-        if (task.status === 'failed') { statusText = '已失败'; statusClass = 'status-failed'; }
 
-        let timeText = '未设置时间';
+        let statusText = chrome.i18n.getMessage('statusPaused');
+        let statusClass = 'status-paused';
+        if (task.status === 'scheduled') { statusText = chrome.i18n.getMessage('statusScheduled'); statusClass = 'status-active'; }
+        if (task.status === 'completed') { statusText = chrome.i18n.getMessage('statusCompleted'); statusClass = 'status-completed'; }
+        if (task.status === 'failed') { statusText = chrome.i18n.getMessage('statusFailed'); statusClass = 'status-failed'; }
+
+        let timeText = chrome.i18n.getMessage('notSetTime');
         let nextRunText = '';
         
         if (task.scheduleType === 'recurring') {
-          const daysMap = ['日','一','二','三','四','五','六'];
+          const daysMap = [
+            chrome.i18n.getMessage('day0'), chrome.i18n.getMessage('day1'), chrome.i18n.getMessage('day2'), 
+            chrome.i18n.getMessage('day3'), chrome.i18n.getMessage('day4'), chrome.i18n.getMessage('day5'), chrome.i18n.getMessage('day6')
+          ];
           const daysStr = (task.recurringDays || []).map(d => daysMap[d]).join('、');
-          timeText = `每周${daysStr} ${task.recurringTime || ''} 循环`;
+          timeText = `${chrome.i18n.getMessage('weekly')}${daysStr} ${task.recurringTime || ''}`;
           
           if (task.status === 'scheduled') {
             const nextMs = getNextRecurringTime(task.recurringTime, task.recurringDays);
             if (nextMs) {
-              nextRunText = `<div style="color:var(--primary); font-weight: 500; margin-top: 4px;">🚀 下次执行: ${new Date(nextMs).toLocaleString()}</div>`;
+              nextRunText = `<div style="color:var(--primary); font-weight: 500; margin-top: 4px;">${chrome.i18n.getMessage('nextExec')}${new Date(nextMs).toLocaleString()}</div>`;
             }
           }
         } else if (task.targetTimeMs) {
           timeText = new Date(task.targetTimeMs).toLocaleString();
           if (task.status === 'scheduled') {
              if (task.targetTimeMs > Date.now()) {
-                nextRunText = `<div style="color:var(--primary); font-weight: 500; margin-top: 4px;">🚀 下次执行: ${new Date(task.targetTimeMs).toLocaleString()}</div>`;
+                nextRunText = `<div style="color:var(--primary); font-weight: 500; margin-top: 4px;">${chrome.i18n.getMessage('nextExec')}${new Date(task.targetTimeMs).toLocaleString()}</div>`;
              } else {
-                nextRunText = `<div style="color:var(--danger); font-weight: 500; margin-top: 4px;">⚠️ 任务已过期</div>`;
+                nextRunText = `<div style="color:var(--danger); font-weight: 500; margin-top: 4px;">${chrome.i18n.getMessage('taskExpired')}</div>`;
              }
           }
         }
@@ -267,12 +282,12 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="task-url-sub">${task.url}</div>
           <div class="task-details" style="margin-top: 8px;">
-            <span>时间: ${timeText} | 步骤: ${task.selectors.length}</span>
+            <span>${chrome.i18n.getMessage('timeLabel')}${timeText} | ${chrome.i18n.getMessage('stepLabel')}${task.selectors.length}</span>
             ${nextRunText}
           </div>
           <div class="task-actions">
-            <button class="icon-btn btn-edit" title="编辑">✏️ 编辑</button>
-            <button class="icon-btn danger btn-delete" title="删除">🗑️ 删除</button>
+            <button class="icon-btn btn-edit" title="Edit">${chrome.i18n.getMessage('editBtn')}</button>
+            <button class="icon-btn danger btn-delete" title="Delete">${chrome.i18n.getMessage('deleteBtn')}</button>
           </div>
         `;
 
@@ -443,16 +458,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   startPickingBtn.addEventListener('click', async () => {
-    if (!urlInput.value.trim()) { showStatus('请先输入目标网址！', 'var(--danger)'); return; }
-    showStatus('正在切换至目标网页...', 'var(--text-muted)');
+    if (!urlInput.value.trim()) { showStatus(chrome.i18n.getMessage('pleaseInputUrl'), 'var(--danger)'); return; }
+    showStatus(chrome.i18n.getMessage('switchTarget'), 'var(--text-muted)');
     const tab = await getOrActivateTargetTab();
     if (!tab) return;
 
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'START_PICKING' });
-      showStatus('请在左侧网页中依次点击目标元素。', 'var(--success)');
+      showStatus(chrome.i18n.getMessage('pickTargetElement'), 'var(--success)');
     } catch (err) {
-      showStatus('请先刷新左侧网页，或确保网页允许注入脚本。', 'var(--danger)');
+      showStatus(chrome.i18n.getMessage('pickError'), 'var(--danger)');
     }
   });
 
@@ -460,19 +475,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (message.action === 'SELECTOR_PICKED') {
       selectors.push(message.selector);
       renderSteps();
-      showStatus(`已添加第 ${selectors.length} 步！`, 'var(--success)');
+      showStatus(chrome.i18n.getMessage('stepAdded', [selectors.length]), 'var(--success)');
     }
   });
 
   verifyBtn.addEventListener('click', async () => {
-    if (selectors.length === 0) { showStatus('请先添加操作步骤！', 'var(--danger)'); return; }
-    if (!urlInput.value.trim()) { showStatus('请输入目标网址！', 'var(--danger)'); return; }
+    if (selectors.length === 0) { showStatus(chrome.i18n.getMessage('pleaseAddSteps'), 'var(--danger)'); return; }
+    if (!urlInput.value.trim()) { showStatus(chrome.i18n.getMessage('pleaseInputUrl'), 'var(--danger)'); return; }
     
-    showStatus('正在切换至目标网页...', 'var(--text-muted)');
+    showStatus(chrome.i18n.getMessage('switchTarget'), 'var(--text-muted)');
     const tab = await getOrActivateTargetTab();
     if (!tab) return;
 
-    verifyBtn.innerHTML = '刷新中...';
+    verifyBtn.innerHTML = chrome.i18n.getMessage('refreshing');
     verifyBtn.disabled = true;
 
     try {
@@ -482,15 +497,15 @@ document.addEventListener('DOMContentLoaded', () => {
           chrome.tabs.onUpdated.removeListener(onUpdated);
           setTimeout(() => {
             chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors, delayMs: parseInt(delayInput.value) || 100 }).catch(()=>{});
-            verifyBtn.innerHTML = '▶ 验证操作';
+            verifyBtn.innerHTML = chrome.i18n.getMessage('verifyOperation');
             verifyBtn.disabled = false;
           }, 1500);
         }
       };
       chrome.tabs.onUpdated.addListener(onUpdated);
     } catch (err) {
-      showStatus('刷新失败。', 'var(--danger)');
-      verifyBtn.innerHTML = '▶ 验证操作';
+      showStatus(chrome.i18n.getMessage('refreshFail'), 'var(--danger)');
+      verifyBtn.innerHTML = chrome.i18n.getMessage('verifyOperation');
       verifyBtn.disabled = false;
     }
   });

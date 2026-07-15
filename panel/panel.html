@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>MiaoGo - 抢购管家</title>
+  <title data-i18n="appTitle">FlashGo 闪电购</title>
   <link rel="stylesheet" href="vendor/flatpickr.min.css">
   <link rel="stylesheet" href="panel.css">
 </head>
@@ -10,8 +10,9 @@
 
   <!-- List View -->
   <div id="listView">
-    <h2>MiaoGo 抢购管家
-      <button id="createTaskBtn" class="btn-primary">新建任务</button>
+    <h2>
+      <span data-i18n="appTitle">FlashGo 闪电购</span>
+      <button id="createTaskBtn" class="btn-primary" data-i18n="createTask">新建任务</button>
     </h2>
     <div id="tasksContainer"></div>
   </div>
@@ -20,50 +21,50 @@
   <div id="editorView" style="display: none;">
     <h2>
       <button id="backToListBtn" class="icon-btn" style="padding: 0 4px;">←</button>
-      任务编辑
+      <span data-i18n="createTask">任务编辑</span>
       <div style="width: 24px;"></div>
     </h2>
 
     <div class="form-group">
-      <label for="targetUrl">目标网址：</label>
-      <input type="url" id="targetUrl" placeholder="例如：https://bigmodel.cn/..." required>
+      <label for="targetUrl" data-i18n="targetUrl">目标网址：</label>
+      <input type="url" id="targetUrl" data-i18n-placeholder="urlPlaceholder" placeholder="例如：https://..." required>
     </div>
 
     <div class="form-group">
-      <label>操作步骤序列：</label>
+      <label data-i18n="operationSequence">验证与操作序列：</label>
       <div id="stepsContainer"></div>
       <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button type="button" id="startPickingBtn" class="btn-secondary" style="flex: 1;">+ 在网页点选</button>
-        <button type="button" id="verifyBtn" class="btn-primary" style="flex: 1;">▶ 验证操作</button>
+        <button type="button" id="startPickingBtn" class="btn-secondary" style="flex: 1;" data-i18n="pickInWebpage">+ 在网页点选</button>
+        <button type="button" id="verifyBtn" class="btn-primary" style="flex: 1;" data-i18n="verifyOperation">▶ 验证操作</button>
       </div>
       <div id="statusMsg" style="margin-top: 6px; font-size: 12px; font-weight: 500;"></div>
     </div>
 
     <div style="display: flex; gap: 8px;">
       <div class="form-group" style="flex: 1;">
-        <label for="stepDelayMs">步骤间隔(ms)：</label>
+        <label for="stepDelayMs" data-i18n="clickInterval">连点间隔(ms)：</label>
         <input type="number" id="stepDelayMs" value="100" min="10">
       </div>
       <div class="form-group" style="flex: 1;">
-        <label for="advanceSeconds">提前打开(秒)：</label>
+        <label for="advanceSeconds" data-i18n="advanceTime">提前启动(秒)：</label>
         <input type="number" id="advanceSeconds" value="5" min="0">
       </div>
     </div>
 
     <div style="display: flex; gap: 8px;">
       <div class="form-group" style="flex: 1;">
-        <label for="maxRetries">最大重试次数：</label>
+        <label for="maxRetries" data-i18n="maxRetries">最大重试次数：</label>
         <input type="number" id="maxRetries" value="0" min="0">
       </div>
       <div class="form-group" style="flex: 1;">
-        <label for="retryDelayMs">重试间隔(ms)：</label>
+        <label for="retryDelayMs" data-i18n="retryDelay">重试间隔(ms)：</label>
         <input type="number" id="retryDelayMs" value="1000" min="0">
       </div>
     </div>
 
     <!-- 高级 Switch -->
     <div class="toggle-switch">
-      <label for="reloadOnRetry">失败重试前强制刷新</label>
+      <label for="reloadOnRetry" data-i18n="reloadOnRetry">失败重试前强制刷新</label>
       <label class="switch">
         <input type="checkbox" id="reloadOnRetry">
         <span class="slider"></span>
@@ -75,46 +76,42 @@
     <!-- 任务调度模块 -->
     <div class="segmented-control">
       <button id="tabOnce" class="active" type="button">单次任务</button>
-      <button id="tabRecurring" type="button">周期循环</button>
+      <button id="tabRecurring" type="button" data-i18n="weekly">周期循环</button>
     </div>
 
     <div class="form-group" id="onceTimeGroup">
-      <label for="targetTime">目标触发时间：</label>
-      <input type="text" id="targetTime" placeholder="请选择启动时间..." style="cursor: pointer;">
+      <label for="targetTime" data-i18n="targetTime">目标触发时间：</label>
+      <input type="text" id="targetTime" data-i18n-placeholder="targetTimePlaceholder" placeholder="请选择启动时间..." style="cursor: pointer;">
     </div>
 
     <div class="form-group" id="recurringTimeGroup" style="display: none;">
-      <label for="recurringTime">每日触发时间：</label>
-      <input type="text" id="recurringTime" placeholder="请选择每日时间..." style="cursor: pointer;">
-      <label style="margin-top: 12px;">每周执行天数：</label>
+      <label for="recurringTime" data-i18n="dailyTime">每日触发时间：</label>
+      <input type="text" id="recurringTime" data-i18n-placeholder="dailyTimePlaceholder" placeholder="请选择每日时间..." style="cursor: pointer;">
+      <label style="margin-top: 12px;" data-i18n="execDays">每周执行天数：</label>
       <div class="day-selector">
-        <button type="button" class="day-btn" data-day="0">日</button>
-        <button type="button" class="day-btn" data-day="1">一</button>
-        <button type="button" class="day-btn" data-day="2">二</button>
-        <button type="button" class="day-btn" data-day="3">三</button>
-        <button type="button" class="day-btn" data-day="4">四</button>
-        <button type="button" class="day-btn" data-day="5">五</button>
-        <button type="button" class="day-btn" data-day="6">六</button>
+        <button type="button" class="day-btn" data-day="0" data-i18n="day0">日</button>
+        <button type="button" class="day-btn" data-day="1" data-i18n="day1">一</button>
+        <button type="button" class="day-btn" data-day="2" data-i18n="day2">二</button>
+        <button type="button" class="day-btn" data-day="3" data-i18n="day3">三</button>
+        <button type="button" class="day-btn" data-day="4" data-i18n="day4">四</button>
+        <button type="button" class="day-btn" data-day="5" data-i18n="day5">五</button>
+        <button type="button" class="day-btn" data-day="6" data-i18n="day6">六</button>
       </div>
-    </div>
-
-    <div class="notice-box">
-      ✨ 智能判定：结束后将使用 Chrome 端侧 AI 判定是否抢购成功，失败将自动重试，成功则停止并推送通知！
     </div>
 
     <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 16px 0;">
 
     <div class="form-group">
-      <label for="taskName">任务名称：</label>
+      <label for="taskName" data-i18n="taskIs">任务名称：</label>
       <div style="display: flex; gap: 6px;">
-        <input type="text" id="taskName" placeholder="例如：抢购iPhone 15..." style="flex: 1;" required>
-        <button type="button" id="autoNameBtn" class="btn-secondary" title="自动推算任务名称" style="padding: 0 10px;">🤖 自动完善</button>
+        <input type="text" id="taskName" placeholder="..." style="flex: 1;" required>
+        <button type="button" id="autoNameBtn" class="btn-secondary" title="自动推算任务名称" style="padding: 0 10px;">🤖 AI</button>
       </div>
     </div>
 
     <div style="display: flex; gap: 8px; margin-top: 16px;">
-      <button id="saveDraftBtn" class="btn-secondary" style="flex: 1;">保存暂存</button>
-      <button id="scheduleBtn" class="btn-primary" style="flex: 1;">保存并调度</button>
+      <button id="saveDraftBtn" class="btn-secondary" style="flex: 1;" data-i18n="saveDraft">保存暂存</button>
+      <button id="scheduleBtn" class="btn-primary" style="flex: 1;" data-i18n="saveSchedule">保存并调度</button>
     </div>
 
   </div>
