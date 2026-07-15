@@ -1,15 +1,165 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  const listView = document.getElementById('listView');
+  const editorView = document.getElementById('editorView');
+  const tasksContainer = document.getElementById('tasksContainer');
+  
+  // Editor elements
   const urlInput = document.getElementById('targetUrl');
   const timeInput = document.getElementById('targetTime');
   const advanceInput = document.getElementById('advanceSeconds');
   const delayInput = document.getElementById('delayMs');
-  const saveBtn = document.getElementById('saveBtn');
-  const statusDiv = document.getElementById('status');
+  const maxRetriesInput = document.getElementById('maxRetries');
+  const retryIntervalInput = document.getElementById('retryIntervalMs');
+  const reloadOnRetryInput = document.getElementById('reloadOnRetry');
+  
+  const stepsContainer = document.getElementById('stepsContainer');
   const addStepBtn = document.getElementById('addStepBtn');
   const verifyBtn = document.getElementById('verifyBtn');
-  const stepsContainer = document.getElementById('stepsContainer');
+  const saveDraftBtn = document.getElementById('saveDraftBtn');
+  const scheduleBtn = document.getElementById('scheduleBtn');
+  const backToListBtn = document.getElementById('backToListBtn');
+  const createNewBtn = document.getElementById('createNewBtn');
+  const statusDiv = document.getElementById('status');
 
+  let tasks = [];
+  let currentEditingTaskId = null;
   let selectors = [];
+
+  // Initialize
+  const data = await chrome.storage.local.get(['tasks', 'config']);
+  if (data.tasks) {
+    tasks = data.tasks;
+  } else if (data.config) {
+    // Migration from single config
+    tasks = [{
+      id: Date.now().toString(),
+      url: data.config.url,
+      selectors: data.config.selectors || [],
+      targetTimeMs: data.config.targetTimeMs,
+      advance: data.config.advance,
+      delayMs: data.config.delayMs || 100,
+      status: 'scheduled',
+      maxRetries: 0,
+      retryIntervalMs: 1000,
+      reloadOnRetry: false
+    }];
+    await chrome.storage.local.set({ tasks });
+  }
+
+  // Auto-update URL logic
+  async function updateUrlToCurrentTab() {
+    if (editorView.style.display !== 'none' && !currentEditingTaskId) {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.url && !tab.url.startsWith('chrome://')) {
+          urlInput.value = tab.url;
+        }
+      } catch (err) {}
+    }
+  }
+
+  chrome.tabs.onActivated.addListener(() => updateUrlToCurrentTab());
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (tab.active && changeInfo.url && !changeInfo.url.startsWith('chrome://')) {
+      if (editorView.style.display !== 'none' && !currentEditingTaskId) {
+        urlInput.value = changeInfo.url;
+      }
+    }
+  });
+
+  // Views
+  function showListView() {
+    listView.style.display = 'block';
+    editorView.style.display = 'none';
+    renderTasks();
+  }
+
+  function showEditorView(task = null) {
+    listView.style.display = 'none';
+    editorView.style.display = 'block';
+    statusDiv.textContent = '';
+    
+    if (task) {
+      currentEditingTaskId = task.id;
+      urlInput.value = task.url;
+      selectors = [...task.selectors];
+      if (task.targetTimeMs) {
+        const d = new Date(task.targetTimeMs);
+        const tzoffset = d.getTimezoneOffset() * 60000;
+        timeInput.value = new Date(d.getTime() - tzoffset).toISOString().slice(0, 16);
+      } else {
+        timeInput.value = '';
+      }
+      advanceInput.value = task.advance || 5;
+      delayInput.value = task.delayMs || 100;
+      maxRetriesInput.value = task.maxRetries || 0;
+      retryIntervalInput.value = task.retryIntervalMs || 1000;
+      reloadOnRetryInput.checked = !!task.reloadOnRetry;
+    } else {
+      currentEditingTaskId = null;
+      urlInput.value = '';
+      updateUrlToCurrentTab();
+      selectors = [];
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 1);
+      now.setSeconds(0);
+      now.setMilliseconds(0);
+      const tzoffset = now.getTimezoneOffset() * 60000;
+      timeInput.value = new Date(now.getTime() - tzoffset).toISOString().slice(0, 16);
+      advanceInput.value = 5;
+      delayInput.value = 100;
+      maxRetriesInput.value = 0;
+      retryIntervalInput.value = 1000;
+      reloadOnRetryInput.checked = false;
+    }
+    renderSteps();
+  }
+
+  function renderTasks() {
+    tasksContainer.innerHTML = '';
+    if (tasks.length === 0) {
+      tasksContainer.innerHTML = '<div style="color:#9ca3af; font-size:12px; text-align:center; padding: 20px;">暂无任务</div>';
+      return;
+    }
+
+    tasks.forEach(task => {
+      const card = document.createElement('div');
+      card.className = 'task-card';
+      let statusClass = task.status === 'draft' ? 'status-draft' : task.status === 'scheduled' ? 'status-scheduled' : 'status-completed';
+      let statusText = task.status === 'draft' ? '暂存' : task.status === 'scheduled' ? '已调度' : task.status === 'failed' ? '失败' : '完成';
+      if (task.status === 'failed') statusClass = 'status-draft'; // reuse gray
+
+      let timeText = task.targetTimeMs ? new Date(task.targetTimeMs).toLocaleString() : '未设置时间';
+
+      card.innerHTML = `
+        <div class="task-header">
+          <div class="task-url" title="${task.url}">${task.url}</div>
+          <div class="task-status ${statusClass}">${statusText}</div>
+        </div>
+        <div class="task-details">时间: ${timeText} | 步骤: ${task.selectors.length}</div>
+        <div class="task-actions">
+          <button class="btn-secondary edit-task-btn">编辑</button>
+          <button class="btn-danger delete-task-btn">删除</button>
+        </div>
+      `;
+      
+      card.querySelector('.edit-task-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showEditorView(task);
+      });
+      card.querySelector('.delete-task-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('确认删除该任务吗？')) {
+          tasks = tasks.filter(t => t.id !== task.id);
+          await chrome.storage.local.set({ tasks });
+          renderTasks();
+          await chrome.runtime.sendMessage({ action: 'TASKS_UPDATED' });
+        }
+      });
+      card.addEventListener('click', () => showEditorView(task));
+      tasksContainer.appendChild(card);
+    });
+  }
 
   function renderSteps() {
     stepsContainer.innerHTML = '';
@@ -22,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       div.className = 'step-item';
       div.innerHTML = `
         <span style="font-size:12px; font-weight:bold; color:#6b7280;">${index + 1}.</span>
-        <input type="text" value="${sel}" data-index="${index}" class="step-input" placeholder="CSS Selector">
+        <input type="text" value="${sel}" data-index="${index}" class="step-input">
         <button type="button" class="btn-danger delete-step-btn" data-index="${index}">删除</button>
       `;
       stepsContainer.appendChild(div);
@@ -34,7 +184,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectors[idx] = e.target.value.trim();
       });
     });
-
     document.querySelectorAll('.delete-step-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const idx = parseInt(e.target.dataset.index);
@@ -44,95 +193,94 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Load existing config
-  const { config } = await chrome.storage.local.get('config');
-  if (config) {
-    urlInput.value = config.url || '';
-    if (config.selectors && config.selectors.length > 0) {
-      selectors = config.selectors;
-    } else if (config.selector) {
-      // Migrate old data
-      selectors = [config.selector];
-    }
-    timeInput.value = config.time || '';
-    advanceInput.value = config.advance || 5;
-    delayInput.value = config.delayMs !== undefined ? config.delayMs : 100;
-  } else {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 1);
-    now.setSeconds(0);
-    now.setMilliseconds(0);
-    const tzoffset = now.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(now.getTime() - tzoffset).toISOString().slice(0, 16);
-    timeInput.value = localISOTime;
-  }
-  
-  renderSteps();
-
   function showStatus(text, color) {
     statusDiv.style.color = color;
     statusDiv.textContent = text;
-    setTimeout(() => {
-      statusDiv.textContent = '';
-    }, 3000);
+    setTimeout(() => { statusDiv.textContent = ''; }, 3000);
   }
 
-  saveBtn.addEventListener('click', async () => {
-    const url = urlInput.value.trim();
-    const timeStr = timeInput.value;
-    const advance = parseInt(advanceInput.value, 10);
-    const delayMs = parseInt(delayInput.value, 10);
-
-    // Sync from inputs in case they typed without changing focus
+  async function saveTask(status) {
     document.querySelectorAll('.step-input').forEach(input => {
       const idx = parseInt(input.dataset.index);
       selectors[idx] = input.value.trim();
     });
-    
-    // Filter out empty
     selectors = selectors.filter(s => s);
-    renderSteps();
 
-    if (!url || selectors.length === 0 || !timeStr || isNaN(advance) || isNaN(delayMs)) {
-      showStatus('请填写所有必填项，且至少包含一个步骤！', '#ef4444');
+    const url = urlInput.value.trim();
+    const timeStr = timeInput.value;
+    const advance = parseInt(advanceInput.value, 10) || 5;
+    const delayMs = parseInt(delayInput.value, 10) || 100;
+    const maxRetries = parseInt(maxRetriesInput.value, 10) || 0;
+    const retryIntervalMs = parseInt(retryIntervalInput.value, 10) || 1000;
+    const reloadOnRetry = reloadOnRetryInput.checked;
+
+    if (!url) {
+      showStatus('请输入目标网址！', '#ef4444');
       return;
     }
 
-    const targetTimeMs = new Date(timeStr).getTime();
-    if (targetTimeMs <= Date.now()) {
-      showStatus('目标时间必须在未来！', '#ef4444');
-      return;
+    let targetTimeMs = null;
+    if (timeStr) {
+      targetTimeMs = new Date(timeStr).getTime();
     }
 
-    const newConfig = { 
-      url, 
-      selectors, 
-      time: timeStr, 
-      targetTimeMs, 
+    if (status === 'scheduled') {
+      if (selectors.length === 0) {
+        showStatus('调度任务必须包含至少一个步骤！', '#ef4444');
+        return;
+      }
+      if (!targetTimeMs || targetTimeMs <= Date.now()) {
+        showStatus('调度任务目标时间必须在未来！', '#ef4444');
+        return;
+      }
+    }
+
+    const newTask = {
+      id: currentEditingTaskId || Date.now().toString(),
+      url,
+      selectors,
+      targetTimeMs,
       advance,
       delayMs,
-      currentStepIndex: 0 // Reset execution state
+      status,
+      maxRetries,
+      retryIntervalMs,
+      reloadOnRetry
     };
 
-    await chrome.storage.local.set({ config: newConfig });
-    showStatus('保存成功！', '#10b981');
+    if (currentEditingTaskId) {
+      const idx = tasks.findIndex(t => t.id === currentEditingTaskId);
+      if (idx !== -1) tasks[idx] = newTask;
+      else tasks.push(newTask);
+    } else {
+      tasks.push(newTask);
+    }
+
+    await chrome.storage.local.set({ tasks });
+    await chrome.runtime.sendMessage({ action: 'TASKS_UPDATED' });
     
-    await chrome.runtime.sendMessage({ action: 'SCHEDULE_TASK', config: newConfig });
-  });
+    showStatus('保存成功！', '#10b981');
+    setTimeout(() => {
+      showListView();
+    }, 1000);
+  }
+
+  saveDraftBtn.addEventListener('click', () => saveTask('draft'));
+  scheduleBtn.addEventListener('click', () => saveTask('scheduled'));
 
   addStepBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
     
-    // Before picking, save current selectors to storage so content script can append
-    const currentConfig = (await chrome.storage.local.get('config')).config || {};
-    currentConfig.selectors = selectors;
-    await chrome.storage.local.set({ config: currentConfig });
+    // Auto-save picking state to storage if we are creating/editing a task
+    chrome.storage.local.get('pickingState', (d) => {
+      chrome.storage.local.set({ pickingState: { selectors }});
+    });
 
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'START_PICKING' });
     } catch (err) {
-      showStatus('请先刷新网页，或确保网页允许注入脚本。', '#ef4444');
+      showStatus('请先刷新左侧网页，或确保网页允许注入脚本。', '#ef4444');
     }
   });
 
@@ -152,13 +300,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!tab) return;
 
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors });
+      await chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors, delayMs: parseInt(delayInput.value) || 100 });
     } catch (err) {
-      showStatus('请先刷新网页，或确保网页允许注入脚本。', '#ef4444');
+      showStatus('请先刷新左侧网页，或确保网页允许注入脚本。', '#ef4444');
     }
   });
 
-  // Listen for picked selector if popup was kept open
+  // Return to list
+  backToListBtn.addEventListener('click', showListView);
+  createNewBtn.addEventListener('click', () => showEditorView(null));
+
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === 'SELECTOR_PICKED') {
       selectors.push(message.selector);
@@ -166,28 +317,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Automatically update the URL input to the current active tab's URL
-  async function updateUrlToCurrentTab() {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab && tab.url && !tab.url.startsWith('chrome://')) {
-        urlInput.value = tab.url;
-      }
-    } catch (err) {}
-  }
-
-  // Initial update
-  updateUrlToCurrentTab();
-
-  // Update on tab switch
-  chrome.tabs.onActivated.addListener(() => {
-    updateUrlToCurrentTab();
-  });
-
-  // Update on tab navigation
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (tab.active && changeInfo.url && !changeInfo.url.startsWith('chrome://')) {
-      urlInput.value = changeInfo.url;
-    }
-  });
+  // Start
+  showListView();
 });

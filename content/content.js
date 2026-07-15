@@ -1,43 +1,88 @@
 (async function() {
-  // Check config for polling
-  const { config } = await chrome.storage.local.get('config');
-  if (config) {
-    startAutoBuyPolling(config);
+  const { tasks, runningState } = await chrome.storage.local.get(['tasks', 'runningState']);
+  if (tasks && tasks.length > 0) {
+    startAutoBuyEngine(tasks, runningState || {});
   }
 
-  function startAutoBuyPolling(config) {
+  function startAutoBuyEngine(tasks, globalState) {
     const currentUrl = window.location.href;
-    let configUrlObj;
-    try {
-      configUrlObj = new URL(config.url);
-    } catch (e) {
-      return;
-    }
-    
     const currentUrlObj = new URL(currentUrl);
-    
-    // Basic match: host and path
-    if (configUrlObj.host !== currentUrlObj.host || configUrlObj.pathname !== currentUrlObj.pathname) {
-      return;
+
+    // Find the first scheduled task that matches the URL
+    let activeTask = null;
+    let activeTaskId = null;
+    let currentStepIndex = 0;
+    let currentRetryCount = 0;
+
+    for (const task of tasks) {
+      if (task.status !== 'scheduled') continue;
+      try {
+        const configUrlObj = new URL(task.url);
+        if (configUrlObj.host === currentUrlObj.host && configUrlObj.pathname === currentUrlObj.pathname) {
+          activeTask = task;
+          activeTaskId = task.id;
+          if (globalState[task.id]) {
+            currentStepIndex = globalState[task.id].currentStepIndex || 0;
+            currentRetryCount = globalState[task.id].currentRetryCount || 0;
+          }
+          break; // take first matched
+        }
+      } catch (e) {}
     }
 
-    const { targetTimeMs, selectors, delayMs = 100 } = config;
+    if (!activeTask) return;
+
+    const { targetTimeMs, selectors, delayMs = 100, maxRetries = 0, retryIntervalMs = 1000, reloadOnRetry = false } = activeTask;
     if (!selectors || selectors.length === 0) return;
     
-    // Resume from where we left off (supports cross-page navigation)
-    let currentStepIndex = config.currentStepIndex || 0;
-    
     if (currentStepIndex >= selectors.length) {
-      console.log(`[MiaoBuy] 所有步骤均已执行完毕！`);
+      console.log(`[MiaoBuy] 任务 ${activeTaskId} 所有步骤均已执行完毕！`);
       return;
     }
 
-    console.log(`[MiaoBuy] 抢购任务加载，目标时间：${new Date(targetTimeMs).toLocaleString()}，步骤进度：${currentStepIndex + 1}/${selectors.length}`);
-
-    let attemptCount = 0;
-    const maxAttempts = 5000; // allow more frames since page loading could take a bit
+    console.log(`[MiaoBuy] 引擎启动，任务：${activeTaskId}，进度：${currentStepIndex + 1}/${selectors.length}，重试：${currentRetryCount}/${maxRetries}`);
 
     let isWaitingDelay = false;
+    let stepStartTime = Date.now();
+    const TIMEOUT_MS = 5000; // 5 seconds timeout per step
+
+    function updateState(step, retry) {
+      return new Promise(resolve => {
+        chrome.storage.local.get('runningState', (data) => {
+          const st = data.runningState || {};
+          st[activeTaskId] = { currentStepIndex: step, currentRetryCount: retry };
+          chrome.storage.local.set({ runningState: st }, resolve);
+        });
+      });
+    }
+
+    async function handleFailure() {
+      console.warn(`[MiaoBuy] 步骤 ${currentStepIndex + 1} 寻找超时！`);
+      if (currentRetryCount < maxRetries) {
+        const nextRetry = currentRetryCount + 1;
+        console.log(`[MiaoBuy] 准备第 ${nextRetry} 次重试...`);
+        await updateState(0, nextRetry);
+        
+        if (reloadOnRetry) {
+          console.log(`[MiaoBuy] 正在刷新页面重试...`);
+          window.location.reload();
+        } else {
+          setTimeout(() => {
+            currentStepIndex = 0;
+            currentRetryCount = nextRetry;
+            stepStartTime = Date.now();
+            requestAnimationFrame(checkAndClick);
+          }, retryIntervalMs);
+        }
+      } else {
+        console.error(`[MiaoBuy] 达到最大重试次数，任务失败退出。`);
+        chrome.storage.local.get('tasks', (data) => {
+          const tks = data.tasks || [];
+          const t = tks.find(x => x.id === activeTaskId);
+          if (t) { t.status = 'failed'; chrome.storage.local.set({ tasks: tks }); }
+        });
+      }
+    }
 
     function checkAndClick() {
       if (currentStepIndex >= selectors.length) return;
@@ -48,9 +93,14 @@
       
       const now = Date.now();
       
-      // If we are on step 0, wait for target time. If we are on step > 0, execute immediately once element is found
-      if (currentStepIndex === 0 && now < targetTimeMs) {
+      if (currentStepIndex === 0 && targetTimeMs && now < targetTimeMs) {
+        stepStartTime = now; // keep resetting start time while waiting for scheduled time
         requestAnimationFrame(checkAndClick);
+        return;
+      }
+
+      if (now - stepStartTime > TIMEOUT_MS) {
+        handleFailure();
         return;
       }
 
@@ -58,39 +108,32 @@
       const el = document.querySelector(selector);
       
       if (el) {
-        console.log(`[MiaoBuy] 第 ${currentStepIndex + 1} 步：找到目标元素 ${selector}，执行点击！时间差：${now - targetTimeMs}ms`);
+        console.log(`[MiaoBuy] 触发步骤 ${currentStepIndex + 1}：${selector}`);
         el.click();
         
         currentStepIndex++;
-        
-        // Save progress to handle cross-page navigation
-        chrome.storage.local.get('config', (data) => {
-          if (data.config) {
-            data.config.currentStepIndex = currentStepIndex;
-            chrome.storage.local.set({ config: data.config });
-          }
-        });
+        updateState(currentStepIndex, currentRetryCount);
 
         if (currentStepIndex < selectors.length) {
           isWaitingDelay = true;
+          stepStartTime = now + delayMs; // Reset timeout counter
           setTimeout(() => {
             isWaitingDelay = false;
           }, delayMs);
-          attemptCount = 0; // reset attempt count for next step
           requestAnimationFrame(checkAndClick);
         } else {
-          console.log(`[MiaoBuy] 所有步骤均已成功执行完毕！`);
+          console.log(`[MiaoBuy] 任务完美执行完毕！`);
+          updateState(0, 0);
+          chrome.storage.local.get('tasks', (data) => {
+            const tks = data.tasks || [];
+            const t = tks.find(x => x.id === activeTaskId);
+            if (t) { t.status = 'completed'; chrome.storage.local.set({ tasks: tks }); }
+          });
         }
       } else {
-        attemptCount++;
-        if (attemptCount < maxAttempts) {
-          requestAnimationFrame(checkAndClick);
-        } else {
-          console.log(`[MiaoBuy] 第 ${currentStepIndex + 1} 步：超过最大尝试次数，未能找到元素 ${selector}，停止。`);
-        }
+        requestAnimationFrame(checkAndClick);
       }
     }
-    // Start polling
     requestAnimationFrame(checkAndClick);
   }
 
@@ -105,7 +148,7 @@
       if (el.id) {
         selector += '#' + CSS.escape(el.id);
         path.unshift(selector);
-        break; // ID is usually unique enough
+        break; 
       } else {
         let sib = el, nth = 1;
         while (sib = sib.previousElementSibling) {
@@ -119,15 +162,8 @@
     return path.join(" > ");
   }
 
-  function handleMouseOver(e) {
-    if (!isPicking) return;
-    e.target.classList.add('miaobuy-picking-highlight');
-  }
-
-  function handleMouseOut(e) {
-    if (!isPicking) return;
-    e.target.classList.remove('miaobuy-picking-highlight');
-  }
+  function handleMouseOver(e) { if (isPicking) e.target.classList.add('miaobuy-picking-highlight'); }
+  function handleMouseOut(e) { if (isPicking) e.target.classList.remove('miaobuy-picking-highlight'); }
 
   function handleClick(e) {
     if (!isPicking) return;
@@ -137,25 +173,12 @@
     e.target.classList.remove('miaobuy-picking-highlight');
     const selector = generateCssPath(e.target);
     
-    // Stop picking
     isPicking = false;
     document.removeEventListener('mouseover', handleMouseOver, true);
     document.removeEventListener('mouseout', handleMouseOut, true);
     document.removeEventListener('click', handleClick, true);
 
-    // Save to storage so popup can load it next time it opens
-    chrome.storage.local.get('config', (data) => {
-      const newConfig = data.config || {};
-      if (!newConfig.selectors) newConfig.selectors = [];
-      newConfig.selectors.push(selector);
-      chrome.storage.local.set({ config: newConfig });
-    });
-
-    // Send message to popup in case it's still open
     chrome.runtime.sendMessage({ action: 'SELECTOR_PICKED', selector });
-    
-    // Visual feedback
-    alert(`[MiaoBuy] 已拾取步骤：\n${selector}\n请重新打开扩展图标查看并保存。`);
   }
 
   function startPicking() {
@@ -166,11 +189,9 @@
     document.addEventListener('click', handleClick, true);
   }
 
-  async function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-  async function verifySequence(selectors) {
+  async function verifySequence(selectors, delayMs) {
     for (let i = 0; i < selectors.length; i++) {
       const selector = selectors[i];
       const el = document.querySelector(selector);
@@ -179,15 +200,13 @@
         return;
       }
       
-      // Scroll into view
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await sleep(400); // Wait for scroll
+      await sleep(400); 
       
       const rect = el.getBoundingClientRect();
       const targetX = rect.left + rect.width / 2 + window.scrollX;
       const targetY = rect.top + rect.height / 2 + window.scrollY;
 
-      // Create cursor if not exists
       let cursor = document.getElementById('miaobuy-simulated-cursor');
       let startX, startY;
       
@@ -200,29 +219,37 @@
         startY = window.innerHeight - 100 + window.scrollY;
         cursor.style.transition = 'none';
         cursor.style.transform = `translate(${startX}px, ${startY}px)`;
-        cursor.offsetHeight; // Force reflow
+        cursor.offsetHeight; // reflow
       }
 
-      // Move to target
-      cursor.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+      // Dynamic move timing based on relative delay, max 0.8s for visual
+      const moveTime = Math.min(0.8, delayMs / 1000);
+      cursor.style.transition = `transform ${moveTime}s cubic-bezier(0.25, 1, 0.5, 1)`;
       cursor.style.transform = `translate(${targetX}px, ${targetY}px)`;
 
-      await sleep(650); // Wait for move to finish
+      await sleep(moveTime * 1000 + 50); 
 
-      // Show ripple
+      // Ripple
       const ripple = document.createElement('div');
       ripple.className = 'miaobuy-ripple';
-      ripple.style.left = targetX - 20 + 'px'; // 40x40 size, center is at 20
-      ripple.style.top = targetY - 20 + 'px';
+      ripple.style.left = targetX + 'px'; 
+      ripple.style.top = targetY + 'px';
       document.body.appendChild(ripple);
 
+      // Tooltip
+      const tooltip = document.createElement('div');
+      tooltip.className = 'miaobuy-tooltip';
+      tooltip.style.left = targetX + 'px';
+      tooltip.style.top = targetY + 'px';
+      tooltip.innerText = `Click ${i + 1}`;
+      document.body.appendChild(tooltip);
+
       setTimeout(() => { ripple.remove(); }, 600);
+      setTimeout(() => { tooltip.remove(); }, 600);
       
-      // Wait before next step
-      await sleep(600);
+      await sleep(delayMs);
     }
     
-    // Remove cursor after sequence
     const finalCursor = document.getElementById('miaobuy-simulated-cursor');
     if (finalCursor) finalCursor.remove();
   }
@@ -232,7 +259,7 @@
       startPicking();
       sendResponse({ success: true });
     } else if (message.action === 'VERIFY_SEQUENCE') {
-      verifySequence(message.selectors);
+      verifySequence(message.selectors, message.delayMs || 600);
       sendResponse({ success: true });
     }
   });

@@ -8,7 +8,7 @@
   position: absolute;
   width: 20px;
   height: 20px;
-  z-index: 2147483647; /* Max z-index */
+  z-index: 2147483647;
   pointer-events: none;
   transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -19,21 +19,36 @@
   border: 2px solid #ef4444;
   width: 40px;
   height: 40px;
-  top: -10px;
-  left: -10px;
+  top: -20px;
+  left: -20px;
   opacity: 0;
   pointer-events: none;
   z-index: 2147483646;
   animation: miaobuyRippleAnim 0.6s ease-out;
 }
 
+.miaobuy-tooltip {
+  position: absolute;
+  background: #111827;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: sans-serif;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 2147483647;
+  transform: translate(10px, 10px);
+  animation: miaobuyTooltipAnim 0.6s ease-in-out forwards;
+}
+
 @keyframes miaobuyRippleAnim {
-  0% {
-    transform: scale(0.1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
+  0% { transform: scale(0.1); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes miaobuyTooltipAnim {
+  0% { transform: translate(10px, 10px) translateY(0); opacity: 1; }
+  80% { transform: translate(10px, 10px) translateY(-10px); opacity: 1; }
+  100% { transform: translate(10px, 10px) translateY(-15px); opacity: 0; }
 }

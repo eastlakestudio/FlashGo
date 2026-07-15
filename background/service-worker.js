@@ -1,27 +1,27 @@
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
-async function scheduleTask() {
-  const { config } = await chrome.storage.local.get('config');
-  if (!config) return;
+async function scheduleAllTasks() {
+  const { tasks } = await chrome.storage.local.get('tasks');
+  if (!tasks) return;
 
   const now = Date.now();
-  const targetTime = config.targetTimeMs;
-  const advanceMs = config.advance * 1000;
-  const openTime = targetTime - advanceMs;
+  await chrome.alarms.clearAll();
 
-  await chrome.alarms.clear('openPageAlarm');
-
-  if (openTime > now) {
-    await chrome.alarms.create('openPageAlarm', { when: openTime });
-    console.log(`Alarm set for ${new Date(openTime).toLocaleString()}`);
-  } else if (targetTime > now) {
-    // If it's already past the advance time but before target, open immediately
-    await openTargetPage(config.url);
+  for (const task of tasks) {
+    if (task.status === 'scheduled' && task.targetTimeMs) {
+      const openTime = task.targetTimeMs - (task.advance * 1000);
+      if (openTime > now) {
+        await chrome.alarms.create(`openTask_${task.id}`, { when: openTime });
+        console.log(`[MiaoBuy] Task ${task.id} scheduled for ${new Date(openTime).toLocaleString()}`);
+      } else if (task.targetTimeMs > now) {
+        // Already within advance window, open immediately
+        await openTargetPage(task.url);
+      }
+    }
   }
 }
 
 async function openTargetPage(url) {
-  // Check if already open
   const tabs = await chrome.tabs.query({ url: "*://*/*" });
   for (const tab of tabs) {
     if (tab.url.startsWith(url) || url.startsWith(tab.url)) {
@@ -33,34 +33,31 @@ async function openTargetPage(url) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'SCHEDULE_TASK') {
+  if (message.action === 'TASKS_UPDATED') {
     (async () => {
       try {
-        await scheduleTask();
+        await scheduleAllTasks();
         sendResponse({ success: true });
       } catch (err) {
         console.error(err);
         sendResponse({ success: false, error: err.toString() });
       }
     })();
-    return true; // Keep channel open for async
+    return true; 
   }
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'openPageAlarm') {
-    const { config } = await chrome.storage.local.get('config');
-    if (config) {
-      console.log(`Alarm triggered. Opening ${config.url}`);
-      await openTargetPage(config.url);
+  if (alarm.name.startsWith('openTask_')) {
+    const taskId = alarm.name.replace('openTask_', '');
+    const { tasks } = await chrome.storage.local.get('tasks');
+    const task = tasks?.find(t => t.id === taskId);
+    if (task) {
+      console.log(`[MiaoBuy] Alarm triggered for task ${taskId}. Opening ${task.url}`);
+      await openTargetPage(task.url);
     }
   }
 });
 
-// Reschedule on startup
-chrome.runtime.onStartup.addListener(() => {
-  scheduleTask();
-});
-chrome.runtime.onInstalled.addListener(() => {
-  scheduleTask();
-});
+chrome.runtime.onStartup.addListener(() => scheduleAllTasks());
+chrome.runtime.onInstalled.addListener(() => scheduleAllTasks());
