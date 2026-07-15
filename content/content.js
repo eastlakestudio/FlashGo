@@ -123,7 +123,7 @@
           requestAnimationFrame(checkAndClick);
         } else {
           // 所有步骤点击完毕，进入校验阶段
-          console.log(`[MiaoBuy] 所有步骤点击完毕，准备使用 AI 校验结果...`);
+          console.log(`[MiaoGo] 所有步骤点击完毕，准备使用 AI 校验结果...`);
           setTimeout(async () => {
             const pageText = document.body.innerText.substring(0, 3000); // 截取前3000字符
             let isSuccess = false;
@@ -132,7 +132,7 @@
               // 尝试调用 Chrome 实验性端侧 AI
               const aiModel = window.ai?.languageModel || window.ai;
               if (aiModel) {
-                console.log(`[MiaoBuy] 检测到本地 AI，正在调用...`);
+                console.log(`[MiaoGo] 检测到本地 AI，正在调用...`);
                 let session;
                 if (typeof aiModel.create === 'function') {
                   session = await aiModel.create();
@@ -141,15 +141,15 @@
                 }
                 if (session) {
                   const prompt = `根据以下网页文本，判断用户的抢购/下单是否成功？(成功特征：去支付、提交成功、订单号等；失败特征：售罄、拥挤、失败、重试、无货等)。\n请仅回答 YES 或 NO。\n\n文本：${pageText}`;
-                  console.log(`[MiaoBuy] 🤖 AI 裁判输入 (Prompt):\n`, prompt);
+                  console.log(`[MiaoGo] 🤖 AI 裁判输入 (Prompt):\n`, prompt);
                   const result = await session.prompt(prompt);
-                  console.log(`[MiaoBuy] 🤖 AI 裁判输出 (Result):\n`, result);
+                  console.log(`[MiaoGo] 🤖 AI 裁判输出 (Result):\n`, result);
                   if (result.toUpperCase().includes('YES')) {
                     isSuccess = true;
                   }
                 }
               } else {
-                console.log(`[MiaoBuy] 未检测到本地 AI，使用降级逻辑判定。`);
+                console.log(`[MiaoGo] 未检测到本地 AI，使用降级逻辑判定。`);
                 // 降级：正则匹配
                 if (/(成功|去支付|订单|付款|支付|提交完成)/i.test(pageText) && !/(售罄|无货|拥挤|失败|重试|报错)/i.test(pageText)) {
                   isSuccess = true;

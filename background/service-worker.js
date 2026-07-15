@@ -76,7 +76,7 @@ function scheduleAllTasks() {
       }
 
       // Update Toolbar Icon Title (Tooltip)
-      let titleStr = `🛒 MiaoBuy 抢购管家\n\n📊 任务概览：\n • 总任务数：${totalTasks}\n • 等待执行：${scheduledCount}\n • 已过期/失败：${expiredCount}`;
+      let titleStr = `🛒 MiaoGo 抢购管家\n\n📊 任务概览：\n • 总任务数：${totalTasks}\n • 等待执行：${scheduledCount}\n • 已过期/失败：${expiredCount}`;
       if (nextTaskInfo) {
         // 格式化时间，去掉秒
         const d = new Date(nextTaskInfo.time);
