@@ -64,21 +64,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Flatpickr
   if (typeof flatpickr !== 'undefined') {
-    fpTargetTime = flatpickr(timeInput, {
-      enableTime: true,
-      dateFormat: "Y-m-d H:i",
-      time_24hr: true,
-      minDate: "today",
-      minuteIncrement: 1
-    });
+    if (timeInput) {
+      fpTargetTime = flatpickr(timeInput, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: false,
+        minDate: "today",
+        onChange: checkFormChanged
+      });
+    }
 
-    fpRecurringTime = flatpickr(recurringTimeInput, {
-      enableTime: true,
-      noCalendar: true,
-      dateFormat: "H:i",
-      time_24hr: true,
-      minuteIncrement: 1
-    });
+    if (recurringTimeInput) {
+      fpRecurringTime = flatpickr(recurringTimeInput, {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: false,
+        onChange: checkFormChanged
+      });
+    }
   }
 
   let currentEditingTaskId = null;
@@ -102,19 +106,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  tabOnce.addEventListener('click', () => setScheduleType('once'));
-  tabRecurring.addEventListener('click', () => setScheduleType('recurring'));
+  tabOnce.addEventListener('click', () => { setScheduleType('once'); checkFormChanged(); });
+  tabRecurring.addEventListener('click', () => { setScheduleType('recurring'); checkFormChanged(); });
 
   // Day toggle logic
   dayBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
-      e.target.classList.toggle('active');
-      const day = parseInt(e.target.dataset.day, 10);
-      if (recurringDays.includes(day)) {
-        recurringDays = recurringDays.filter(d => d !== day);
+      const dayVal = parseInt(btn.dataset.day, 10);
+      if (recurringDays.includes(dayVal)) {
+        recurringDays = recurringDays.filter(d => d !== dayVal);
+        btn.classList.remove('active');
       } else {
-        recurringDays.push(day);
+        recurringDays.push(dayVal);
+        btn.classList.add('active');
       }
+      checkFormChanged();
     });
   });
 
@@ -127,6 +133,45 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  let initialTaskStateStr = '';
+
+  function getFormStateStr() {
+    return JSON.stringify({
+      name: taskNameInput.value.trim(),
+      url: urlInput.value.trim(),
+      scheduleType: currentScheduleType,
+      targetTime: timeInput.value,
+      recurringTime: recurringTimeInput.value,
+      recurringDays: [...recurringDays].sort(),
+      selectors: [...selectors],
+      advanceSeconds: parseInt(advanceInput.value) || 0,
+      delayMs: parseInt(delayInput.value) || 0,
+      maxRetries: parseInt(maxRetriesInput.value) || 0,
+      retryDelayMs: parseInt(retryDelayMsInput.value) || 0,
+      reloadOnRetry: reloadOnRetryInput.checked
+    });
+  }
+
+  function checkFormChanged() {
+    if (editorView.style.display === 'block') {
+      const changed = getFormStateStr() !== initialTaskStateStr;
+      saveDraftBtn.disabled = !changed;
+      scheduleBtn.disabled = !changed;
+      
+      // Update UI styles for disabled state
+      saveDraftBtn.style.opacity = changed ? '1' : '0.5';
+      saveDraftBtn.style.cursor = changed ? 'pointer' : 'not-allowed';
+      scheduleBtn.style.opacity = changed ? '1' : '0.5';
+      scheduleBtn.style.cursor = changed ? 'pointer' : 'not-allowed';
+    }
+  }
+
+  // Attach change listeners to all inputs
+  [taskNameInput, urlInput, advanceInput, delayInput, maxRetriesInput, retryDelayMsInput, reloadOnRetryInput].forEach(el => {
+    el.addEventListener('input', checkFormChanged);
+    el.addEventListener('change', checkFormChanged);
+  });
 
   function renderView(isEditor, task = null) {
     if (isEditor) {
@@ -193,6 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       renderSteps();
       statusMsg.textContent = '';
+      
+      // Reset disabled state check after rendering
+      initialTaskStateStr = getFormStateStr();
+      checkFormChanged();
     } else {
       editorView.style.display = 'none';
       listView.style.display = 'block';
@@ -292,8 +341,15 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
 
-        card.querySelector('.btn-edit').addEventListener('click', () => renderView(true, task));
-        card.querySelector('.btn-delete').addEventListener('click', () => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => renderView(true, task));
+
+        card.querySelector('.btn-edit').addEventListener('click', (e) => {
+          e.stopPropagation();
+          renderView(true, task);
+        });
+        card.querySelector('.btn-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
           if (confirm('确定要删除这个任务吗？')) {
             chrome.storage.local.get('tasks', (d) => {
               const tks = d.tasks || [];
@@ -323,9 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelectorAll('.step-input').forEach(input => {
-      input.addEventListener('change', (e) => {
+      input.addEventListener('input', (e) => {
         const idx = parseInt(e.target.dataset.index);
         selectors[idx] = e.target.value.trim();
+        checkFormChanged();
       });
     });
     document.querySelectorAll('.delete-step-btn').forEach(btn => {
@@ -333,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = parseInt(e.currentTarget.dataset.index);
         selectors.splice(idx, 1);
         renderSteps();
+        checkFormChanged();
       });
     });
     document.querySelectorAll('.locate-step-btn').forEach(btn => {
@@ -476,6 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (message.action === 'SELECTOR_PICKED') {
       selectors.push(message.selector);
       renderSteps();
+      checkFormChanged();
       showStatus(chrome.i18n.getMessage('stepAdded', [selectors.length]), 'var(--success)');
     }
   });
