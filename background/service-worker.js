@@ -34,6 +34,10 @@ function scheduleAllTasks() {
       let changed = false;
 
       tasks.forEach(task => {
+        if (task.status === 'failed' || task.status === 'completed') {
+          expiredCount++;
+        }
+
         if (task.status === 'scheduled') {
           let targetMs = null;
           
@@ -55,12 +59,11 @@ function scheduleAllTasks() {
             if (openTime > now) {
               chrome.alarms.create(ALARM_PREFIX + task.id, { when: openTime });
             } else {
-              // Should open immediately if we missed the advance window but haven't passed target
               openTargetPage(task.url, task.id);
             }
           } else {
             if (task.scheduleType === 'once') {
-              task.status = 'failed'; // Passed without execution, or missed
+              task.status = 'failed'; 
               changed = true;
               expiredCount++;
             }
