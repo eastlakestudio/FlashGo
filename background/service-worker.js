@@ -113,7 +113,7 @@ function openTargetPage(url, taskId) {
 }
 
 // Side Panel Activation
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionIconClick: true }).catch(console.error);
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
 // Re-evaluate schedules when storage changes
 chrome.storage.onChanged.addListener((changes, area) => {
