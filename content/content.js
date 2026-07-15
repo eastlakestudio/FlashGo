@@ -44,7 +44,7 @@
 
     let isWaitingDelay = false;
     let stepStartTime = Date.now();
-    const TIMEOUT_MS = 5000; // 5 seconds timeout per step
+    const TIMEOUT_MS = 15000; // 增加到 15 秒，避免慢速网页导致误判
 
     function updateState(step, retry) {
       return new Promise(resolve => {
@@ -97,6 +97,11 @@
         stepStartTime = now; // keep resetting start time while waiting for scheduled time
         requestAnimationFrame(checkAndClick);
         return;
+      }
+
+      // 等待 DOM 基本加载完成，再开始计算超时时间
+      if (document.readyState !== 'complete') {
+        stepStartTime = now;
       }
 
       if (now - stepStartTime > TIMEOUT_MS) {
@@ -295,12 +300,25 @@
     setTimeout(() => successBox.remove(), 6000);
   }
 
+  async function waitForElement(selector, timeoutMs = 5000) {
+    const start = Date.now();
+    return new Promise(resolve => {
+      const check = () => {
+        const el = document.querySelector(selector);
+        if (el) return resolve(el);
+        if (Date.now() - start > timeoutMs) return resolve(null);
+        requestAnimationFrame(check);
+      };
+      check();
+    });
+  }
+
   async function verifySequence(selectors, delayMs) {
     for (let i = 0; i < selectors.length; i++) {
       const selector = selectors[i];
-      const el = document.querySelector(selector);
+      const el = await waitForElement(selector, 8000); // 最多等8秒
       if (!el) {
-        alert(`[MiaoBuy] 第 ${i + 1} 步中断：未能在页面上找到元素\n${selector}`);
+        alert(`[FlashGo] 第 ${i + 1} 步中断：未能在页面上找到元素\n${selector}`);
         return;
       }
       
