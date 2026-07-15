@@ -268,7 +268,6 @@
   
   const HIGHLIGHT_DURATION = 1500;
 
-  // 添加辅助提示框
   const toast = document.createElement('div');
   toast.style.cssText = `
     position: fixed; top: 20px; right: 20px; z-index: 999999;
@@ -277,9 +276,11 @@
     transition: all 0.3s; opacity: 0; pointer-events: none;
   `;
   toast.textContent = chrome.i18n.getMessage('startRunning') || 'FlashGo: Started...';
-  document.body.appendChild(toast);
 
   function showToast(msg, isError = false) {
+    if (!toast.parentNode && document.body) {
+      document.body.appendChild(toast);
+    }
     toast.textContent = msg;
     toast.style.background = isError ? '#ef4444' : '#3b82f6';
     toast.style.opacity = '1';
