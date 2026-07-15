@@ -1,22 +1,63 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const urlInput = document.getElementById('targetUrl');
-  const selectorInput = document.getElementById('targetSelector');
   const timeInput = document.getElementById('targetTime');
   const advanceInput = document.getElementById('advanceSeconds');
+  const delayInput = document.getElementById('delayMs');
   const saveBtn = document.getElementById('saveBtn');
   const statusDiv = document.getElementById('status');
-  const pickBtn = document.getElementById('pickBtn');
+  const addStepBtn = document.getElementById('addStepBtn');
   const verifyBtn = document.getElementById('verifyBtn');
+  const stepsContainer = document.getElementById('stepsContainer');
+
+  let selectors = [];
+
+  function renderSteps() {
+    stepsContainer.innerHTML = '';
+    if (selectors.length === 0) {
+      stepsContainer.innerHTML = '<div style="color:#9ca3af; font-size:12px; text-align:center;">暂无步骤，请点击下方添加</div>';
+      return;
+    }
+    selectors.forEach((sel, index) => {
+      const div = document.createElement('div');
+      div.className = 'step-item';
+      div.innerHTML = `
+        <span style="font-size:12px; font-weight:bold; color:#6b7280;">${index + 1}.</span>
+        <input type="text" value="${sel}" data-index="${index}" class="step-input" placeholder="CSS Selector">
+        <button type="button" class="btn-danger delete-step-btn" data-index="${index}">删除</button>
+      `;
+      stepsContainer.appendChild(div);
+    });
+
+    document.querySelectorAll('.step-input').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.dataset.index);
+        selectors[idx] = e.target.value.trim();
+      });
+    });
+
+    document.querySelectorAll('.delete-step-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.target.dataset.index);
+        selectors.splice(idx, 1);
+        renderSteps();
+      });
+    });
+  }
 
   // Load existing config
   const { config } = await chrome.storage.local.get('config');
   if (config) {
     urlInput.value = config.url || '';
-    selectorInput.value = config.selector || '';
+    if (config.selectors && config.selectors.length > 0) {
+      selectors = config.selectors;
+    } else if (config.selector) {
+      // Migrate old data
+      selectors = [config.selector];
+    }
     timeInput.value = config.time || '';
     advanceInput.value = config.advance || 5;
+    delayInput.value = config.delayMs !== undefined ? config.delayMs : 100;
   } else {
-    // Set default time to next minute
     const now = new Date();
     now.setMinutes(now.getMinutes() + 1);
     now.setSeconds(0);
@@ -25,6 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const localISOTime = new Date(now.getTime() - tzoffset).toISOString().slice(0, 16);
     timeInput.value = localISOTime;
   }
+  
+  renderSteps();
 
   function showStatus(text, color) {
     statusDiv.style.color = color;
@@ -36,12 +79,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   saveBtn.addEventListener('click', async () => {
     const url = urlInput.value.trim();
-    const selector = selectorInput.value.trim();
     const timeStr = timeInput.value;
     const advance = parseInt(advanceInput.value, 10);
+    const delayMs = parseInt(delayInput.value, 10);
 
-    if (!url || !selector || !timeStr || isNaN(advance)) {
-      showStatus('请填写所有字段！', '#ef4444');
+    // Sync from inputs in case they typed without changing focus
+    document.querySelectorAll('.step-input').forEach(input => {
+      const idx = parseInt(input.dataset.index);
+      selectors[idx] = input.value.trim();
+    });
+    
+    // Filter out empty
+    selectors = selectors.filter(s => s);
+    renderSteps();
+
+    if (!url || selectors.length === 0 || !timeStr || isNaN(advance) || isNaN(delayMs)) {
+      showStatus('请填写所有必填项，且至少包含一个步骤！', '#ef4444');
       return;
     }
 
@@ -51,7 +104,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const newConfig = { url, selector, time: timeStr, targetTimeMs, advance };
+    const newConfig = { 
+      url, 
+      selectors, 
+      time: timeStr, 
+      targetTimeMs, 
+      advance,
+      delayMs,
+      currentStepIndex: 0 // Reset execution state
+    };
 
     await chrome.storage.local.set({ config: newConfig });
     showStatus('保存成功！', '#10b981');
@@ -59,10 +120,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.runtime.sendMessage({ action: 'SCHEDULE_TASK', config: newConfig });
   });
 
-  pickBtn.addEventListener('click', async () => {
+  addStepBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
     
+    // Before picking, save current selectors to storage so content script can append
+    const currentConfig = (await chrome.storage.local.get('config')).config || {};
+    currentConfig.selectors = selectors;
+    await chrome.storage.local.set({ config: currentConfig });
+
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'START_PICKING' });
       window.close(); // Close popup so user can pick
@@ -72,9 +138,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   verifyBtn.addEventListener('click', async () => {
-    const selector = selectorInput.value.trim();
-    if (!selector) {
-      showStatus('请先填写选择器！', '#ef4444');
+    document.querySelectorAll('.step-input').forEach(input => {
+      const idx = parseInt(input.dataset.index);
+      selectors[idx] = input.value.trim();
+    });
+    selectors = selectors.filter(s => s);
+
+    if (selectors.length === 0) {
+      showStatus('请先添加至少一个步骤！', '#ef4444');
       return;
     }
 
@@ -82,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!tab) return;
 
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SELECTOR', selector });
+      await chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors });
       window.close(); // Close popup to watch verification
     } catch (err) {
       showStatus('请先刷新网页，或确保网页允许注入脚本。', '#ef4444');
@@ -92,7 +163,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Listen for picked selector if popup was kept open
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === 'SELECTOR_PICKED') {
-      selectorInput.value = message.selector;
+      selectors.push(message.selector);
+      renderSteps();
     }
   });
 });

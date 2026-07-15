@@ -21,33 +21,73 @@
       return;
     }
 
-    const { targetTimeMs, selector } = config;
-    console.log(`[MiaoBuy] 抢购任务加载，目标时间：${new Date(targetTimeMs).toLocaleString()}，选择器：${selector}`);
+    const { targetTimeMs, selectors, delayMs = 100 } = config;
+    if (!selectors || selectors.length === 0) return;
+    
+    // Resume from where we left off (supports cross-page navigation)
+    let currentStepIndex = config.currentStepIndex || 0;
+    
+    if (currentStepIndex >= selectors.length) {
+      console.log(`[MiaoBuy] 所有步骤均已执行完毕！`);
+      return;
+    }
 
-    let clicked = false;
+    console.log(`[MiaoBuy] 抢购任务加载，目标时间：${new Date(targetTimeMs).toLocaleString()}，步骤进度：${currentStepIndex + 1}/${selectors.length}`);
+
     let attemptCount = 0;
-    const maxAttempts = 1000; // After target time, try 1000 times max
+    const maxAttempts = 5000; // allow more frames since page loading could take a bit
+
+    let isWaitingDelay = false;
 
     function checkAndClick() {
-      if (clicked) return;
+      if (currentStepIndex >= selectors.length) return;
+      if (isWaitingDelay) {
+        requestAnimationFrame(checkAndClick);
+        return;
+      }
+      
       const now = Date.now();
-      if (now >= targetTimeMs) {
-        // Time is up! Try to click
-        const el = document.querySelector(selector);
-        if (el) {
-          console.log(`[MiaoBuy] 找到目标元素，执行点击！时间差：${now - targetTimeMs}ms`);
-          el.click();
-          clicked = true;
-        } else {
-          attemptCount++;
-          if (attemptCount < maxAttempts) {
-            requestAnimationFrame(checkAndClick);
-          } else {
-            console.log(`[MiaoBuy] 超过最大尝试次数，未能找到元素 ${selector}`);
+      
+      // If we are on step 0, wait for target time. If we are on step > 0, execute immediately once element is found
+      if (currentStepIndex === 0 && now < targetTimeMs) {
+        requestAnimationFrame(checkAndClick);
+        return;
+      }
+
+      const selector = selectors[currentStepIndex];
+      const el = document.querySelector(selector);
+      
+      if (el) {
+        console.log(`[MiaoBuy] 第 ${currentStepIndex + 1} 步：找到目标元素 ${selector}，执行点击！时间差：${now - targetTimeMs}ms`);
+        el.click();
+        
+        currentStepIndex++;
+        
+        // Save progress to handle cross-page navigation
+        chrome.storage.local.get('config', (data) => {
+          if (data.config) {
+            data.config.currentStepIndex = currentStepIndex;
+            chrome.storage.local.set({ config: data.config });
           }
+        });
+
+        if (currentStepIndex < selectors.length) {
+          isWaitingDelay = true;
+          setTimeout(() => {
+            isWaitingDelay = false;
+          }, delayMs);
+          attemptCount = 0; // reset attempt count for next step
+          requestAnimationFrame(checkAndClick);
+        } else {
+          console.log(`[MiaoBuy] 所有步骤均已成功执行完毕！`);
         }
       } else {
-        requestAnimationFrame(checkAndClick);
+        attemptCount++;
+        if (attemptCount < maxAttempts) {
+          requestAnimationFrame(checkAndClick);
+        } else {
+          console.log(`[MiaoBuy] 第 ${currentStepIndex + 1} 步：超过最大尝试次数，未能找到元素 ${selector}，停止。`);
+        }
       }
     }
     // Start polling
@@ -106,7 +146,8 @@
     // Save to storage so popup can load it next time it opens
     chrome.storage.local.get('config', (data) => {
       const newConfig = data.config || {};
-      newConfig.selector = selector;
+      if (!newConfig.selectors) newConfig.selectors = [];
+      newConfig.selectors.push(selector);
       chrome.storage.local.set({ config: newConfig });
     });
 
@@ -114,7 +155,7 @@
     chrome.runtime.sendMessage({ action: 'SELECTOR_PICKED', selector });
     
     // Visual feedback
-    alert(`[MiaoBuy] 已选取选择器：\n${selector}\n请重新打开扩展图标以查看。`);
+    alert(`[MiaoBuy] 已拾取步骤：\n${selector}\n请重新打开扩展图标查看并保存。`);
   }
 
   function startPicking() {
@@ -125,66 +166,73 @@
     document.addEventListener('click', handleClick, true);
   }
 
-  function verifySelector(selector) {
-    const el = document.querySelector(selector);
-    if (!el) {
-      alert(`[MiaoBuy] 未能在页面上找到元素：${selector}`);
-      return;
-    }
-    
-    // Scroll into view
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
-    setTimeout(() => {
+  async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function verifySequence(selectors) {
+    for (let i = 0; i < selectors.length; i++) {
+      const selector = selectors[i];
+      const el = document.querySelector(selector);
+      if (!el) {
+        alert(`[MiaoBuy] 第 ${i + 1} 步中断：未能在页面上找到元素\n${selector}`);
+        return;
+      }
+      
+      // Scroll into view
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await sleep(400); // Wait for scroll
+      
       const rect = el.getBoundingClientRect();
       const targetX = rect.left + rect.width / 2 + window.scrollX;
       const targetY = rect.top + rect.height / 2 + window.scrollY;
 
-      // Create cursor
+      // Create cursor if not exists
       let cursor = document.getElementById('miaobuy-simulated-cursor');
+      let startX, startY;
+      
       if (!cursor) {
         cursor = document.createElement('div');
         cursor.id = 'miaobuy-simulated-cursor';
         cursor.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill: black; stroke: white;"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path></svg>`;
         document.body.appendChild(cursor);
+        startX = window.innerWidth - 100 + window.scrollX;
+        startY = window.innerHeight - 100 + window.scrollY;
+        cursor.style.transition = 'none';
+        cursor.style.transform = `translate(${startX}px, ${startY}px)`;
+        cursor.offsetHeight; // Force reflow
       }
 
-      // Initial pos (bottom right of the window)
-      const startX = window.innerWidth - 100 + window.scrollX;
-      const startY = window.innerHeight - 100 + window.scrollY;
-      
-      cursor.style.transition = 'none';
-      cursor.style.transform = `translate(${startX}px, ${startY}px)`;
-      
-      // Force reflow
-      cursor.offsetHeight;
-
       // Move to target
-      cursor.style.transition = 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+      cursor.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
       cursor.style.transform = `translate(${targetX}px, ${targetY}px)`;
 
-      // After move completes, show ripple
-      setTimeout(() => {
-        const ripple = document.createElement('div');
-        ripple.className = 'miaobuy-ripple';
-        ripple.style.left = targetX - 20 + 'px'; // 40x40 size, center is at 20
-        ripple.style.top = targetY - 20 + 'px';
-        document.body.appendChild(ripple);
+      await sleep(650); // Wait for move to finish
 
-        setTimeout(() => {
-          ripple.remove();
-          setTimeout(() => cursor.remove(), 500);
-        }, 600);
-      }, 800); // Wait for transition
-    }, 500); // Wait for scroll
+      // Show ripple
+      const ripple = document.createElement('div');
+      ripple.className = 'miaobuy-ripple';
+      ripple.style.left = targetX - 20 + 'px'; // 40x40 size, center is at 20
+      ripple.style.top = targetY - 20 + 'px';
+      document.body.appendChild(ripple);
+
+      setTimeout(() => { ripple.remove(); }, 600);
+      
+      // Wait before next step
+      await sleep(600);
+    }
+    
+    // Remove cursor after sequence
+    const finalCursor = document.getElementById('miaobuy-simulated-cursor');
+    if (finalCursor) finalCursor.remove();
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'START_PICKING') {
       startPicking();
       sendResponse({ success: true });
-    } else if (message.action === 'VERIFY_SELECTOR') {
-      verifySelector(message.selector);
+    } else if (message.action === 'VERIFY_SEQUENCE') {
+      verifySequence(message.selectors);
       sendResponse({ success: true });
     }
   });
