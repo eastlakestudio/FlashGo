@@ -1,4 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // 强制修复扩展侧边栏中 Flatpickr 时间滚轮失效的问题
+  document.addEventListener('wheel', (e) => {
+    if (e.target.classList.contains('flatpickr-hour') || e.target.classList.contains('flatpickr-minute')) {
+      e.preventDefault();
+      const isUp = e.deltaY < 0;
+      const min = parseInt(e.target.min) || 0;
+      const max = parseInt(e.target.max) || (e.target.classList.contains('flatpickr-hour') ? 23 : 59);
+      const step = parseInt(e.target.step) || 1;
+      let val = parseInt(e.target.value) || 0;
+      
+      if (isUp) {
+        val = val + step > max ? min : val + step;
+      } else {
+        val = val - step < min ? max : val - step;
+      }
+      
+      e.target.value = val.toString().padStart(2, '0');
+      e.target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, { passive: false });
+
   const listView = document.getElementById('listView');
   const editorView = document.getElementById('editorView');
   const createTaskBtn = document.getElementById('createTaskBtn');
