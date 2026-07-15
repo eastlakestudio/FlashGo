@@ -404,8 +404,27 @@ document.addEventListener('DOMContentLoaded', () => {
   createTaskBtn.addEventListener('click', () => renderView(true));
   backToListBtn.addEventListener('click', () => renderView(false));
   
+  async function getOrActivateTargetTab() {
+    const url = urlInput.value.trim();
+    if (!url) return null;
+    const tabs = await chrome.tabs.query({});
+    let targetTab = tabs.find(t => t.url && t.url.includes(url.split('?')[0])); // 忽略复杂参数匹配
+    
+    if (targetTab) {
+      await chrome.tabs.update(targetTab.id, { active: true });
+      await chrome.windows.update(targetTab.windowId, { focused: true });
+    } else {
+      targetTab = await chrome.tabs.create({ url, active: true });
+      // 简单等待 2 秒加载
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    return targetTab;
+  }
+
   startPickingBtn.addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!urlInput.value.trim()) { showStatus('请先输入目标网址！', 'var(--danger)'); return; }
+    showStatus('正在切换至目标网页...', 'var(--text-muted)');
+    const tab = await getOrActivateTargetTab();
     if (!tab) return;
 
     try {
@@ -426,7 +445,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   verifyBtn.addEventListener('click', async () => {
     if (selectors.length === 0) { showStatus('请先添加操作步骤！', 'var(--danger)'); return; }
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!urlInput.value.trim()) { showStatus('请输入目标网址！', 'var(--danger)'); return; }
+    
+    showStatus('正在切换至目标网页...', 'var(--text-muted)');
+    const tab = await getOrActivateTargetTab();
     if (!tab) return;
 
     verifyBtn.innerHTML = '刷新中...';
