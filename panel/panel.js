@@ -221,7 +221,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     selectors = selectors.filter(s => s);
 
-    const name = taskNameInput.value.trim() || '未命名任务';
+    if (!urlInput.value.trim()) {
+      showStatus('请输入目标网址！', '#ef4444');
+      return;
+    }
+
+    let name = taskNameInput.value.trim();
+    if (!name) {
+      showStatus('正在自动完善名称...', '#6b7280');
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab) {
+          const response = await chrome.tabs.sendMessage(tab.id, { action: 'GENERATE_TASK_NAME', selectors });
+          if (response && response.name) name = response.name;
+        }
+      } catch (e) {}
+      if (!name) name = '未命名任务';
+      taskNameInput.value = name;
+    }
+
     const url = urlInput.value.trim();
     const timeStr = timeInput.value;
     const advance = parseInt(advanceInput.value, 10) || 5;
@@ -347,7 +365,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     autoNameBtn.textContent = '...';
     try {
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'GENERATE_TASK_NAME' });
+      // 传递当前录制的步骤数组
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'GENERATE_TASK_NAME', selectors });
       if (response && response.name) {
         taskNameInput.value = response.name;
       } else {
@@ -356,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
       taskNameInput.value = tab.title || '抢购任务';
     }
-    autoNameBtn.textContent = '🤖 智能命名';
+    autoNameBtn.textContent = '🤖 自动完善';
   });
 
   // Return to list

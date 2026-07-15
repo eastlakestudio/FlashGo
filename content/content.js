@@ -340,15 +340,20 @@
           const aiModel = window.ai?.languageModel || window.ai;
           if (aiModel) {
             let session = typeof aiModel.create === 'function' ? await aiModel.create() : await aiModel.createTextSession();
-            const prompt = `你是一个命名助手。请根据网页标题和摘要，提取最核心的品牌/商品/服务，生成一个简短的“抢购任务名称”。
+            let stepsContext = '';
+            if (message.selectors && message.selectors.length > 0) {
+              stepsContext = `用户试图按顺序点击页面上的这些元素选择器：\n${message.selectors.join('\n')}\n请结合这些元素的ID或类名特征推测用户的操作意图。`;
+            }
+            const prompt = `你是一个命名助手。请根据网页标题、摘要以及用户试图点击的操作元素，提取最核心的品牌/商品/服务，生成一个简短的“抢购任务名称”。
 要求：
-1. 格式必须是：“[核心商品/服务名]抢购” 或 “[核心名]预约”。
+1. 格式必须是：“[核心商品/服务名]抢购” 或 “[核心动作/服务名]预约”。
 2. 例子：如果网页是智谱GLM的计划购买页，输出“智谱CodingPlan抢购”。
 3. 极度精简，限制在12个字符以内。
 4. 仅输出名称，绝不包含任何多余标点、符号或解释文字。
 
 网页标题：${document.title}
-网页摘要：${document.body.innerText.substring(0, 500)}`;
+网页摘要：${document.body.innerText.substring(0, 500)}
+${stepsContext}`;
             let name = await session.prompt(prompt);
             name = name.replace(/["'\\[\\]\n]/g, '').trim();
             sendResponse({ name: name || document.title.substring(0, 15) });
