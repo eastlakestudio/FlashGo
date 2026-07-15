@@ -344,3 +344,24 @@ input:checked + .slider:before { transform: translateX(20px); }
   box-shadow: var(--shadow-sm);
   font-weight: 600;
 }
+
+/* Flatpickr Mac Style Override */
+.flatpickr-calendar {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+  padding: 8px !important;
+  font-family: var(--font-sans) !important;
+}
+.flatpickr-day.selected {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+.flatpickr-time {
+  border-top: 1px solid var(--border-color) !important;
+  margin-top: 4px;
+}
+.flatpickr-time input {
+  font-weight: 600 !important;
+  color: var(--text-main) !important;
+}

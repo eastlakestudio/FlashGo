@@ -30,6 +30,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const recurringTimeInput = document.getElementById('recurringTime');
   const dayBtns = document.querySelectorAll('.day-btn');
 
+  let fpTargetTime = null;
+  let fpRecurringTime = null;
+
+  // Initialize Flatpickr
+  if (typeof flatpickr !== 'undefined') {
+    fpTargetTime = flatpickr(timeInput, {
+      enableTime: true,
+      dateFormat: "Y-m-d H:i",
+      time_24hr: true,
+      minDate: "today",
+      minuteIncrement: 1
+    });
+
+    fpRecurringTime = flatpickr(recurringTimeInput, {
+      enableTime: true,
+      noCalendar: true,
+      dateFormat: "H:i",
+      time_24hr: true,
+      minuteIncrement: 1
+    });
+  }
+
   let currentEditingTaskId = null;
   let selectors = [];
   let scheduleType = 'once';
@@ -94,13 +116,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (task.targetTimeMs) {
           const d = new Date(task.targetTimeMs);
           const tzOffset = d.getTimezoneOffset() * 60000;
-          const localISOTime = (new Date(d.getTime() - tzOffset)).toISOString().slice(0,16);
-          timeInput.value = localISOTime;
+          const localISOTime = (new Date(d.getTime() - tzOffset)).toISOString().slice(0,16).replace('T', ' ');
+          if (fpTargetTime) fpTargetTime.setDate(localISOTime);
+          else timeInput.value = localISOTime;
         } else {
-          timeInput.value = '';
+          if (fpTargetTime) fpTargetTime.clear();
+          else timeInput.value = '';
         }
 
-        recurringTimeInput.value = task.recurringTime || '';
+        if (fpRecurringTime) fpRecurringTime.setDate(task.recurringTime || '');
+        else recurringTimeInput.value = task.recurringTime || '';
+        
         recurringDays = [...(task.recurringDays || [])];
         dayBtns.forEach(btn => {
           const d = parseInt(btn.dataset.day, 10);
@@ -119,7 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
         urlInput.value = '';
         updateUrlToCurrentTab();
         selectors = [];
-        timeInput.value = '';
+        if (fpTargetTime) fpTargetTime.clear();
+        else timeInput.value = '';
+        
         advanceInput.value = 5;
         delayInput.value = 100;
         maxRetriesInput.value = 0;
@@ -127,7 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
         reloadOnRetryInput.checked = false;
         
         setScheduleType('once');
-        recurringTimeInput.value = '';
+        
+        if (fpRecurringTime) fpRecurringTime.clear();
+        else recurringTimeInput.value = '';
+        
         recurringDays = [];
         dayBtns.forEach(b => b.classList.remove('active'));
       }
