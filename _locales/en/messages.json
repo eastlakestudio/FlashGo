@@ -1,7 +1,7 @@
 {
-  "extName": { "message": "FlashGo - QuickBuy" },
+  "extName": { "message": "FlashGo" },
   "extDesc": { "message": "Automatically open webpages and rapid-click buttons on schedule." },
-  "appTitle": { "message": "FlashGo QuickBuy" },
+  "appTitle": { "message": "FlashGo" },
   "createTask": { "message": "New Task" },
   "noTasks": { "message": "No tasks yet, create one now!" },
   "targetUrl": { "message": "Target URL:" },
