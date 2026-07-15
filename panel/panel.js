@@ -505,25 +505,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabs = await chrome.tabs.query({});
     let targetTab = tabs.find(t => t.url && t.url.includes(url.split('?')[0])); // 忽略复杂参数匹配
     
+    let isNewlyCreated = false;
     if (targetTab) {
       await chrome.tabs.update(targetTab.id, { active: true });
       await chrome.windows.update(targetTab.windowId, { focused: true });
     } else {
+      isNewlyCreated = true;
       targetTab = await chrome.tabs.create({ url, active: true });
-      // 简单等待 2 秒加载
-      await new Promise(r => setTimeout(r, 2000));
+      // 如果是验证操作或者拾取，稍微等一等
+      await new Promise(r => setTimeout(r, 500));
     }
-    return targetTab;
+    return { tab: targetTab, isNewlyCreated };
   }
 
   startPickingBtn.addEventListener('click', async () => {
     if (!urlInput.value.trim()) { showStatus(chrome.i18n.getMessage('pleaseInputUrl'), 'var(--danger)'); return; }
     showStatus(chrome.i18n.getMessage('switchTarget'), 'var(--text-muted)');
-    const tab = await getOrActivateTargetTab();
-    if (!tab) return;
+    const result = await getOrActivateTargetTab();
+    if (!result || !result.tab) return;
 
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'START_PICKING' });
+      await chrome.tabs.sendMessage(result.tab.id, { action: 'START_PICKING' });
       showStatus(chrome.i18n.getMessage('pickTargetElement'), 'var(--success)');
     } catch (err) {
       showStatus(chrome.i18n.getMessage('pickError'), 'var(--danger)');
@@ -544,14 +546,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!urlInput.value.trim()) { showStatus(chrome.i18n.getMessage('pleaseInputUrl'), 'var(--danger)'); return; }
     
     showStatus(chrome.i18n.getMessage('switchTarget'), 'var(--text-muted)');
-    const tab = await getOrActivateTargetTab();
-    if (!tab) return;
+    const result = await getOrActivateTargetTab();
+    if (!result || !result.tab) return;
+    
+    const { tab, isNewlyCreated } = result;
 
     verifyBtn.innerHTML = chrome.i18n.getMessage('refreshing');
     verifyBtn.disabled = true;
 
     try {
-      await chrome.tabs.reload(tab.id);
+      if (!isNewlyCreated) {
+        await chrome.tabs.reload(tab.id);
+      }
+      
       const onUpdated = (tabId, changeInfo) => {
         if (tabId === tab.id && changeInfo.status === 'complete') {
           chrome.tabs.onUpdated.removeListener(onUpdated);
@@ -563,6 +570,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       };
       chrome.tabs.onUpdated.addListener(onUpdated);
+      
+      // 如果是刚新建的标签页，可能在我们绑定事件前就已经 complete 了
+      // 或者需要通过主动查询来兜底
+      if (isNewlyCreated) {
+         chrome.tabs.get(tab.id, (t) => {
+            if (t.status === 'complete') {
+               chrome.tabs.onUpdated.removeListener(onUpdated);
+               setTimeout(() => {
+                 chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors, delayMs: parseInt(delayInput.value) || 100 }).catch(()=>{});
+                 verifyBtn.innerHTML = chrome.i18n.getMessage('verifyOperation');
+                 verifyBtn.disabled = false;
+               }, 1500);
+            }
+         });
+      }
+      
     } catch (err) {
       showStatus(chrome.i18n.getMessage('refreshFail'), 'var(--danger)');
       verifyBtn.innerHTML = chrome.i18n.getMessage('verifyOperation');
