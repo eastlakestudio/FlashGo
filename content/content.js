@@ -334,6 +334,24 @@
         setTimeout(() => el.classList.remove('miaobuy-locate-highlight'), 1500);
       }
       sendResponse({ success: true });
+    } else if (message.action === 'GENERATE_TASK_NAME') {
+      (async () => {
+        try {
+          const aiModel = window.ai?.languageModel || window.ai;
+          if (aiModel) {
+            let session = typeof aiModel.create === 'function' ? await aiModel.create() : await aiModel.createTextSession();
+            const prompt = `为以下网页内容起一个简短的抢购任务名称（如：抢购茅台、预约挂号、秒杀球鞋），限制在12个字以内，仅输出名称，不要输出多余解释。网页标题：${document.title}。网页内容摘要：${document.body.innerText.substring(0, 500)}`;
+            let name = await session.prompt(prompt);
+            name = name.replace(/["'\\[\\]\n]/g, '').trim();
+            sendResponse({ name: name || document.title.substring(0, 15) });
+          } else {
+            sendResponse({ name: document.title.substring(0, 15) });
+          }
+        } catch (e) {
+          sendResponse({ name: document.title.substring(0, 15) });
+        }
+      })();
+      return true; // indicate async response
     }
   });
 

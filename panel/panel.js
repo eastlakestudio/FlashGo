@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tasksContainer = document.getElementById('tasksContainer');
   
   // Editor elements
+  const taskNameInput = document.getElementById('taskName');
+  const autoNameBtn = document.getElementById('autoNameBtn');
   const urlInput = document.getElementById('targetUrl');
   const timeInput = document.getElementById('targetTime');
   const advanceInput = document.getElementById('advanceSeconds');
@@ -81,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (task) {
       currentEditingTaskId = task.id;
+      taskNameInput.value = task.name || '';
       urlInput.value = task.url;
       selectors = [...task.selectors];
       if (task.targetTimeMs) {
@@ -97,6 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       reloadOnRetryInput.checked = !!task.reloadOnRetry;
     } else {
       currentEditingTaskId = null;
+      taskNameInput.value = '';
       urlInput.value = '';
       updateUrlToCurrentTab();
       selectors = [];
@@ -133,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       card.innerHTML = `
         <div class="task-header">
-          <div class="task-url" title="${task.url}">${task.url}</div>
+          <div class="task-url" title="${task.url}">${task.name || task.url}</div>
           <div class="task-status ${statusClass}">${statusText}</div>
         </div>
         <div class="task-details">时间: ${timeText} | 步骤: ${task.selectors.length}</div>
@@ -217,6 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     selectors = selectors.filter(s => s);
 
+    const name = taskNameInput.value.trim() || '未命名任务';
     const url = urlInput.value.trim();
     const timeStr = timeInput.value;
     const advance = parseInt(advanceInput.value, 10) || 5;
@@ -248,6 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const newTask = {
       id: currentEditingTaskId || Date.now().toString(),
+      name,
       url,
       selectors,
       targetTimeMs,
@@ -310,11 +316,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
 
+    verifyBtn.textContent = '刷新...';
+    verifyBtn.disabled = true;
+
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors, delayMs: parseInt(delayInput.value) || 100 });
+      await chrome.tabs.reload(tab.id);
+      
+      const onUpdated = (tabId, changeInfo) => {
+        if (tabId === tab.id && changeInfo.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          // 等待页面完全渲染和 content.js 注入
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tab.id, { action: 'VERIFY_SEQUENCE', selectors, delayMs: parseInt(delayInput.value) || 100 }).catch(()=>{});
+            verifyBtn.textContent = '验证序列';
+            verifyBtn.disabled = false;
+          }, 1500);
+        }
+      };
+      chrome.tabs.onUpdated.addListener(onUpdated);
     } catch (err) {
-      showStatus('请先刷新左侧网页，或确保网页允许注入脚本。', '#ef4444');
+      showStatus('刷新失败。', '#ef4444');
+      verifyBtn.textContent = '验证序列';
+      verifyBtn.disabled = false;
     }
+  });
+
+  autoNameBtn.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+    
+    autoNameBtn.textContent = '...';
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'GENERATE_TASK_NAME' });
+      if (response && response.name) {
+        taskNameInput.value = response.name;
+      } else {
+        taskNameInput.value = tab.title || '抢购任务';
+      }
+    } catch (err) {
+      taskNameInput.value = tab.title || '抢购任务';
+    }
+    autoNameBtn.textContent = '🤖 智能命名';
   });
 
   // Return to list

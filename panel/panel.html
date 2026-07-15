@@ -27,6 +27,14 @@
       <label for="targetUrl">目标网址：</label>
       <input type="url" id="targetUrl" placeholder="例如：https://bigmodel.cn/..." required>
     </div>
+
+    <div class="form-group">
+      <label for="taskName">任务名称：</label>
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="taskName" placeholder="例如：抢购iPhone 15..." style="flex: 1;" required>
+        <button type="button" id="autoNameBtn" class="btn-secondary" title="使用端侧AI根据当前网页生成名称" style="margin: 0; padding: 0 10px;">🤖 智能命名</button>
+      </div>
+    </div>
     
     <div class="form-group">
       <label>操作步骤序列：</label>
