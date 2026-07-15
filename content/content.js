@@ -141,8 +141,9 @@
                 }
                 if (session) {
                   const prompt = `根据以下网页文本，判断用户的抢购/下单是否成功？(成功特征：去支付、提交成功、订单号等；失败特征：售罄、拥挤、失败、重试、无货等)。\n请仅回答 YES 或 NO。\n\n文本：${pageText}`;
+                  console.log(`[MiaoBuy] 🤖 AI 裁判输入 (Prompt):\n`, prompt);
                   const result = await session.prompt(prompt);
-                  console.log(`[MiaoBuy] AI 判断结果:`, result);
+                  console.log(`[MiaoBuy] 🤖 AI 裁判输出 (Result):\n`, result);
                   if (result.toUpperCase().includes('YES')) {
                     isSuccess = true;
                   }
@@ -360,7 +361,9 @@
 网页标题：${document.title}
 网页摘要：${document.body.innerText.substring(0, 500)}
 ${stepsContext}`;
+            console.log(`[MiaoBuy] 🤖 AI 命名输入 (Prompt):\n`, prompt);
             let name = await session.prompt(prompt);
+            console.log(`[MiaoBuy] 🤖 AI 命名输出 (Result):\n`, name);
             name = name.replace(/["'\\[\\]\n]/g, '').trim();
             sendResponse({ name: name || document.title.substring(0, 15) });
           } else {
