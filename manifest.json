@@ -5,7 +5,12 @@
   "description": "定时自动打开网页并高频点击按钮进行抢购。",
   "permissions": ["storage", "alarms", "tabs", "sidePanel", "notifications"],
   "host_permissions": ["<all_urls>"],
-  "action": {},
+  "icons": {
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": "icons/icon128.png"
+  },
   "side_panel": {
     "default_path": "panel/panel.html"
   },
