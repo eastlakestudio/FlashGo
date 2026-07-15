@@ -365,3 +365,12 @@ input:checked + .slider:before { transform: translateX(20px); }
   font-weight: 600 !important;
   color: var(--text-main) !important;
 }
+/* 使时间的上下控制箭头更明显，暗示支持滚轮和点击 */
+.flatpickr-time .numInputWrapper span.arrowUp,
+.flatpickr-time .numInputWrapper span.arrowDown {
+  opacity: 0.8 !important;
+  border-color: rgba(0,0,0,0.1) !important;
+}
+.flatpickr-time .numInputWrapper span:hover {
+  background: var(--secondary) !important;
+}
