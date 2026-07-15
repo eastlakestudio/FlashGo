@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FlashGo Screenshot</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: #e0e5ec;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  .browser-window {
+    width: 1280px;
+    height: 800px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .browser-header {
+    height: 52px;
+    background: #f1f3f4;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #dadce0;
+  }
+  .window-controls {
+    display: flex;
+    gap: 8px;
+  }
+  .window-controls div {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .close { background: #ff5f56; }
+  .min { background: #ffbd2e; }
+  .max { background: #27c93f; }
+  
+  .address-bar {
+    flex: 1;
+    margin: 0 20px;
+    background: #fff;
+    border-radius: 20px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    color: #5f6368;
+    font-size: 14px;
+    box-shadow: inset 0 0 0 1px #dadce0;
+  }
+
+  .browser-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .webpage {
+    flex: 1;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    color: white;
+  }
+  .side-panel {
+    width: 360px;
+    border-left: 1px solid #dadce0;
+    background: #fff;
+  }
+
+  /* Mock Webpage Content */
+  .web-header {
+    background: #111;
+    padding: 20px 40px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .web-hero {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><rect fill="%23050510" width="800" height="400"/><circle cx="400" cy="200" r="100" fill="%231a237e" opacity="0.5"/><path d="M350,300 L400,100 L450,300 Z" fill="%23ffffff"/></svg>') center/cover;
+    color: white;
+    padding: 60px 40px;
+    text-align: center;
+    position: relative;
+  }
+  .web-hero::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, #000 100%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 2;
+  }
+  .web-hero h1 { font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px; text-transform: uppercase; }
+  .countdown {
+    font-size: 32px;
+    font-weight: bold;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(5px);
+    padding: 10px 24px;
+    border-radius: 8px;
+    display: inline-block;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .product-grid {
+    display: flex;
+    gap: 20px;
+    padding: 20px 40px;
+    justify-content: center;
+    background: #000;
+  }
+  .product-card {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    width: 240px;
+    text-align: center;
+  }
+  .product-img {
+    width: 160px;
+    height: 160px;
+    background: #222;
+    border-radius: 8px;
+    margin: 0 auto 16px auto;
+  }
+  .buy-btn {
+    background: white;
+    color: black;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 16px;
+    width: 100%;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="browser-window" id="capture-area">
+  <!-- Chrome Top Bar Mock -->
+  <div class="browser-header">
+    <div class="window-controls">
+      <div class="close"></div><div class="min"></div><div class="max"></div>
+    </div>
+    <div class="address-bar">
+      🔒 https://www.spacex.com/starship
+    </div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <img src="../icons/icon16.png" style="width:18px;height:18px;">
+    </div>
+  </div>
+  
+  <div class="browser-content">
+    <!-- Webpage Mock (Starship) -->
+    <div class="webpage">
+      <div class="web-header">
+        <h2 style="margin:0; color:#fff; letter-spacing: 2px;">SPACEX</h2>
+        <div style="color:#aaa; font-weight:500; font-size: 14px; letter-spacing: 1px;">FALCON 9 | STARSHIP | HUMAN SPACEFLIGHT</div>
+      </div>
+      <div class="web-hero">
+        <div class="hero-content">
+          <h1>STARSHIP FLIGHT 6</h1>
+          <div class="countdown">T - 02 : 45 : 18</div>
+        </div>
+      </div>
+      <div class="product-grid">
+        <div class="product-card">
+          <div class="product-img" style="display: flex; align-items: center; justify-content: center; font-size: 64px;">🎫</div>
+          <h3 style="margin:0 0 8px 0; font-size: 16px;">Launch Viewing Ticket</h3>
+          <div style="color:#aaa; font-weight:bold; font-size:18px;">STARBASE, TX</div>
+          <button class="buy-btn">Book Now</button>
+        </div>
+        <div class="product-card">
+          <div class="product-img" style="display: flex; align-items: center; justify-content: center; font-size: 64px;">🚀</div>
+          <h3 style="margin:0 0 8px 0; font-size: 16px;">Mars Journey Deposit</h3>
+          <div style="color:#aaa; font-weight:bold; font-size:18px;">LTD AVAILABILITY</div>
+          <button class="buy-btn">Reserve</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Real Extension Side Panel (Embedded via srcdoc to bypass local CORS) -->
+    <div class="side-panel">
+      <iframe frameborder="0" width="100%" height="100%" srcdoc='
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <link rel="stylesheet" href="../panel/panel.css">
+          <style>
+            /* Ensure the body looks exactly like the panel */
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 16px; color: #111827; }
+          </style>
+        </head>
+        <body>
+          <div id="listView">
+            <h2 style="font-size: 18px; font-weight: 700; margin: 0 0 16px 0; display: flex; justify-content: space-between; align-items: center;">
+              <span>FlashGo</span>
+              <button class="btn-primary" style="background-color: #4f46e5; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600;">New Task</button>
+            </h2>
+            <div id="tasksContainer">
+              
+              <div class="task-card">
+                <div class="task-header">
+                  <div>
+                    <div class="task-name">Snatch Starbase Tickets</div>
+                    <div class="task-url-sub">https://www.spacex.com/starship</div>
+                  </div>
+                  <div class="task-status status-scheduled">Scheduled</div>
+                </div>
+                <div class="task-details">
+                  <div>⏰ Time: 10:00:00</div>
+                  <div>🔄 Clicks: 2 steps</div>
+                </div>
+                <div class="task-actions">
+                  <button class="btn-secondary">Edit</button>
+                  <button class="btn-secondary danger">Delete</button>
+                </div>
+              </div>
+              
+              <div class="task-card">
+                <div class="task-header">
+                  <div>
+                    <div class="task-name">SpaceX Merch Drop</div>
+                    <div class="task-url-sub">https://shop.spacex.com</div>
+                  </div>
+                  <div class="task-status status-scheduled">Recurring</div>
+                </div>
+                <div class="task-details">
+                  <div>⏰ Mon, Wed, Fri - 08:30:00</div>
+                  <div>🔄 Clicks: 3 steps</div>
+                </div>
+                <div class="task-actions">
+                  <button class="btn-secondary">Edit</button>
+                  <button class="btn-secondary danger">Delete</button>
+                </div>
+              </div>
+              
+              <div class="task-card">
+                <div class="task-header">
+                  <div>
+                    <div class="task-name">Mars Application</div>
+                    <div class="task-url-sub">https://mars.spacex.com/apply</div>
+                  </div>
+                  <div class="task-status status-completed">Completed</div>
+                </div>
+                <div class="task-details">
+                  <div>⏰ Oct 24, 2023 20:00:00</div>
+                  <div>✅ Success</div>
+                </div>
+                <div class="task-actions">
+                  <button class="btn-secondary">Edit</button>
+                  <button class="btn-secondary danger">Delete</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </body>
+        </html>
+      '></iframe>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 // Polyfill for alarms if needed
-const ALARM_PREFIX = 'miaobuy-task-';
+const ALARM_PREFIX = 'flashgo-task-';
 
 function getNextRecurringTime(recurringTimeStr, recurringDaysArr) {
   if (!recurringTimeStr || !recurringDaysArr || recurringDaysArr.length === 0) return null;
@@ -167,17 +167,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     });
     return true; 
+  } else if (message.action === 'NOTIFY_STATUS') {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      title: message.taskName || 'FlashGo 任务',
+      message: '状态：' + message.status,
+      priority: 1
+    });
+    sendResponse({ success: true });
   } else if (message.action === 'NOTIFY_SUCCESS') {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', // Placeholder 1x1 image
-      title: '抢购大捷！',
-      message: message.text || '端侧 AI 判定：已为您成功抢到商品，请尽快前往付款！',
+      title: (message.taskName ? message.taskName + ' - ' : '') + '抢购大捷！',
+      message: message.text || '状态：执行成功。端侧 AI 判定：已为您成功抢到商品，请尽快前往付款！',
       priority: 2
     });
     // 成功后触发一次重新计算，循环任务会算出下一次的时间
     scheduleAllTasks();
     sendResponse({ success: true });
+  } else if (message.action === 'CALL_AI_MAIN_WORLD') {
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id },
+      world: 'MAIN',
+      func: async (prompt) => {
+        try {
+          const aiModel = window.ai?.languageModel || window.ai;
+          if (!aiModel) return null;
+          let session = typeof aiModel.create === 'function' ? await aiModel.create() : await aiModel.createTextSession();
+          let result = await session.prompt(prompt);
+          // 销毁 session 释放内存
+          if (typeof session.destroy === 'function') session.destroy();
+          return result;
+        } catch (e) {
+          return null;
+        }
+      },
+      args: [message.prompt]
+    }).then(results => {
+      sendResponse({ result: results[0]?.result || null });
+    }).catch(e => {
+      sendResponse({ result: null, error: e.toString() });
+    });
+    return true;
   }
 });
 

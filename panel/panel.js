@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let name = taskNameInput.value.trim();
     if (!name) {
-      showStatus('正在自动完善名称...', 'var(--text-muted)');
+      showStatus(chrome.i18n.getMessage('autoNaming'), 'var(--text-muted)');
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab) {
@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (response && response.name) name = response.name;
         }
       } catch (e) {}
-      if (!name) name = '未命名任务';
+      if (!name) name = chrome.i18n.getMessage('defaultTaskName');
       taskNameInput.value = name;
     }
 
@@ -450,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (scheduleType === 'once') {
       const timeStr = timeInput.value;
       if (status === 'scheduled') {
-        if (!timeStr) { showStatus('单次任务请设置目标触发时间！', 'var(--danger)'); return; }
+        if (!timeStr) { showStatus(chrome.i18n.getMessage('setOnceTime'), 'var(--danger)'); return; }
         targetTimeMs = new Date(timeStr).getTime();
         if (isNaN(targetTimeMs)) { showStatus('时间格式错误', 'var(--danger)'); return; }
       } else {
@@ -603,12 +603,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (response && response.name) {
         taskNameInput.value = response.name;
       } else {
-        taskNameInput.value = tab.title || '抢购任务';
+        taskNameInput.value = tab.title || chrome.i18n.getMessage('defaultTaskName');
       }
     } catch (err) {
-      taskNameInput.value = tab.title || '抢购任务';
+      taskNameInput.value = tab.title || chrome.i18n.getMessage('defaultTaskName');
     }
-    autoNameBtn.textContent = '🤖 自动完善';
+    autoNameBtn.textContent = chrome.i18n.getMessage('autoName');
   });
 
   saveDraftBtn.addEventListener('click', () => saveTask('draft'));

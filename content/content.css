@@ -1,10 +1,10 @@
-.miaobuy-picking-highlight {
+.flashgo-picking-highlight {
   outline: 3px dashed #ef4444 !important;
   outline-offset: -2px !important;
   cursor: crosshair !important;
 }
 
-#miaobuy-picking-overlay {
+#flashgo-picking-overlay {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
   z-index: 2147483647;
@@ -12,16 +12,16 @@
   background: transparent;
 }
 
-.miaobuy-locate-highlight {
-  animation: miaobuyLocateAnim 1.5s ease-out forwards !important;
+.flashgo-locate-highlight {
+  animation: flashgoLocateAnim 1.5s ease-out forwards !important;
 }
 
-@keyframes miaobuyLocateAnim {
+@keyframes flashgoLocateAnim {
   0% { outline: 4px solid #3b82f6; outline-offset: 2px; background: rgba(59, 130, 246, 0.3); }
   100% { outline: 4px solid transparent; outline-offset: 2px; background: transparent; }
 }
 
-#miaobuy-simulated-cursor {
+#flashgo-simulated-cursor {
   position: absolute;
   width: 20px;
   height: 20px;
@@ -30,7 +30,7 @@
   transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.miaobuy-ripple {
+.flashgo-ripple {
   position: absolute;
   border-radius: 50%;
   border: 2px solid #ef4444;
@@ -41,10 +41,10 @@
   opacity: 0;
   pointer-events: none;
   z-index: 2147483646;
-  animation: miaobuyRippleAnim 0.6s ease-out;
+  animation: flashgoRippleAnim 0.6s ease-out;
 }
 
-.miaobuy-tooltip {
+.flashgo-tooltip {
   position: absolute;
   background: #111827;
   color: white;
@@ -56,15 +56,15 @@
   pointer-events: none;
   z-index: 2147483647;
   transform: translate(10px, 10px);
-  animation: miaobuyTooltipAnim 0.6s ease-in-out forwards;
+  animation: flashgoTooltipAnim 0.6s ease-in-out forwards;
 }
 
-@keyframes miaobuyRippleAnim {
+@keyframes flashgoRippleAnim {
   0% { transform: scale(0.1); opacity: 1; }
   100% { transform: scale(2); opacity: 0; }
 }
 
-@keyframes miaobuyTooltipAnim {
+@keyframes flashgoTooltipAnim {
   0% { transform: translate(10px, 10px) translateY(0); opacity: 1; }
   80% { transform: translate(10px, 10px) translateY(-10px); opacity: 1; }
   100% { transform: translate(10px, 10px) translateY(-15px); opacity: 0; }

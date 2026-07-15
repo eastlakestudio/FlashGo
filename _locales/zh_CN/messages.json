@@ -59,5 +59,10 @@
   "day3": { "message": "三" },
   "day4": { "message": "四" },
   "day5": { "message": "五" },
-  "day6": { "message": "六" }
+  "day6": { "message": "六" },
+  "autoNaming": { "message": "正在自动完善名称..." },
+  "autoName": { "message": "🤖 自动完善" },
+  "once": { "message": "单次任务" },
+  "setOnceTime": { "message": "单次任务请设置目标触发时间！" },
+  "defaultTaskName": { "message": "抢购任务" }
 }

@@ -75,7 +75,7 @@
 
     <!-- 任务调度模块 -->
     <div class="segmented-control">
-      <button id="tabOnce" class="active" type="button">单次任务</button>
+      <button id="tabOnce" class="active" type="button" data-i18n="once">单次任务</button>
       <button id="tabRecurring" type="button" data-i18n="weekly">周期循环</button>
     </div>
 
@@ -105,7 +105,7 @@
       <label for="taskName" data-i18n="taskIs">任务名称：</label>
       <div style="display: flex; gap: 6px;">
         <input type="text" id="taskName" placeholder="..." style="flex: 1;" required>
-        <button type="button" id="autoNameBtn" class="btn-secondary" title="自动推算任务名称" style="padding: 0 10px;">🤖 AI</button>
+        <button type="button" id="autoNameBtn" class="btn-secondary" title="自动推算任务名称" data-i18n="autoName" style="padding: 0 10px;">🤖 自动完善</button>
       </div>
     </div>
 

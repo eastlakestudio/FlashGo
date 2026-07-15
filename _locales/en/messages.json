@@ -59,5 +59,10 @@
   "day3": { "message": "Wed" },
   "day4": { "message": "Thu" },
   "day5": { "message": "Fri" },
-  "day6": { "message": "Sat" }
+  "day6": { "message": "Sat" },
+  "autoNaming": { "message": "Auto naming..." },
+  "autoName": { "message": "🤖 Auto Complete" },
+  "once": { "message": "Once" },
+  "setOnceTime": { "message": "Please set target time for one-time task!" },
+  "defaultTaskName": { "message": "FlashGo Task" }
 }
