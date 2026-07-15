@@ -4,6 +4,23 @@
   cursor: crosshair !important;
 }
 
+#miaobuy-picking-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: 2147483647;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.miaobuy-locate-highlight {
+  animation: miaobuyLocateAnim 1.5s ease-out forwards !important;
+}
+
+@keyframes miaobuyLocateAnim {
+  0% { outline: 4px solid #3b82f6; outline-offset: 2px; background: rgba(59, 130, 246, 0.3); }
+  100% { outline: 4px solid transparent; outline-offset: 2px; background: transparent; }
+}
+
 #miaobuy-simulated-cursor {
   position: absolute;
   width: 20px;

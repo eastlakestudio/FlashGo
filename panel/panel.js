@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       div.innerHTML = `
         <span style="font-size:12px; font-weight:bold; color:#6b7280;">${index + 1}.</span>
         <input type="text" value="${sel}" data-index="${index}" class="step-input">
+        <button type="button" class="btn-secondary locate-step-btn" data-index="${index}" title="在页面中高亮此元素" style="background:#e5e7eb; color:#4b5563;">🔍</button>
         <button type="button" class="btn-danger delete-step-btn" data-index="${index}">删除</button>
       `;
       stepsContainer.appendChild(div);
@@ -189,6 +190,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const idx = parseInt(e.target.dataset.index);
         selectors.splice(idx, 1);
         renderSteps();
+      });
+    });
+    document.querySelectorAll('.locate-step-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const idx = parseInt(e.target.dataset.index);
+        const selector = selectors[idx];
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && selector) {
+          chrome.tabs.sendMessage(tab.id, { action: 'HIGHLIGHT_ELEMENT', selector }).catch(() => {});
+        }
       });
     });
   }

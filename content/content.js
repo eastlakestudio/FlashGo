@@ -184,6 +184,8 @@
 
   // --- Element Picking & Replay Logic ---
   let isPicking = false;
+  let pickingOverlay = null;
+  let lastHighlightedEl = null;
 
   function generateCssPath(el) {
     if (!(el instanceof Element)) return;
@@ -207,31 +209,47 @@
     return path.join(" > ");
   }
 
-  function handleMouseOver(e) { if (isPicking) e.target.classList.add('miaobuy-picking-highlight'); }
-  function handleMouseOut(e) { if (isPicking) e.target.classList.remove('miaobuy-picking-highlight'); }
+  function handleOverlayMouseMove(e) {
+    if (!isPicking) return;
+    pickingOverlay.style.pointerEvents = 'none';
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    pickingOverlay.style.pointerEvents = 'auto';
 
-  function handleClick(e) {
+    if (el && el !== lastHighlightedEl) {
+      if (lastHighlightedEl) lastHighlightedEl.classList.remove('miaobuy-picking-highlight');
+      el.classList.add('miaobuy-picking-highlight');
+      lastHighlightedEl = el;
+    }
+  }
+
+  function handleOverlayClick(e) {
     if (!isPicking) return;
     e.preventDefault();
     e.stopPropagation();
 
-    e.target.classList.remove('miaobuy-picking-highlight');
-    const selector = generateCssPath(e.target);
+    pickingOverlay.style.pointerEvents = 'none';
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    
+    if (lastHighlightedEl) lastHighlightedEl.classList.remove('miaobuy-picking-highlight');
     
     isPicking = false;
-    document.removeEventListener('mouseover', handleMouseOver, true);
-    document.removeEventListener('mouseout', handleMouseOut, true);
-    document.removeEventListener('click', handleClick, true);
+    pickingOverlay.remove();
+    pickingOverlay = null;
 
-    chrome.runtime.sendMessage({ action: 'SELECTOR_PICKED', selector });
+    if (el) {
+      const selector = generateCssPath(el);
+      chrome.runtime.sendMessage({ action: 'SELECTOR_PICKED', selector });
+    }
   }
 
   function startPicking() {
     if (isPicking) return;
     isPicking = true;
-    document.addEventListener('mouseover', handleMouseOver, true);
-    document.addEventListener('mouseout', handleMouseOut, true);
-    document.addEventListener('click', handleClick, true);
+    pickingOverlay = document.createElement('div');
+    pickingOverlay.id = 'miaobuy-picking-overlay';
+    document.body.appendChild(pickingOverlay);
+    pickingOverlay.addEventListener('mousemove', handleOverlayMouseMove, true);
+    pickingOverlay.addEventListener('click', handleOverlayClick, true);
   }
 
   async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -305,6 +323,16 @@
       sendResponse({ success: true });
     } else if (message.action === 'VERIFY_SEQUENCE') {
       verifySequence(message.selectors, message.delayMs || 600);
+      sendResponse({ success: true });
+    } else if (message.action === 'HIGHLIGHT_ELEMENT') {
+      const el = document.querySelector(message.selector);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.remove('miaobuy-locate-highlight');
+        void el.offsetWidth; // trigger reflow
+        el.classList.add('miaobuy-locate-highlight');
+        setTimeout(() => el.classList.remove('miaobuy-locate-highlight'), 1500);
+      }
       sendResponse({ success: true });
     }
   });
