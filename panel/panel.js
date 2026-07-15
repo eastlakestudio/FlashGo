@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return JSON.stringify({
       name: taskNameInput.value.trim(),
       url: urlInput.value.trim(),
-      scheduleType: currentScheduleType,
+      scheduleType: scheduleType,
       targetTime: timeInput.value,
       recurringTime: recurringTimeInput.value,
       recurringDays: [...recurringDays].sort(),
