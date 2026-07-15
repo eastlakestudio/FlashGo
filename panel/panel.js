@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         card.querySelector('.btn-delete').addEventListener('click', (e) => {
           e.stopPropagation();
-          if (confirm('确定要删除这个任务吗？')) {
+          if (confirm(chrome.i18n.getMessage('confirmDelete'))) {
             chrome.storage.local.get('tasks', (d) => {
               const tks = d.tasks || [];
               const newTks = tks.filter(t => t.id !== task.id);

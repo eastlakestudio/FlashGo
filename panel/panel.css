@@ -20,6 +20,58 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --secondary: #374151;
+    --secondary-hover: #4b5563;
+    --danger: #ef4444;
+    --danger-hover: #f87171;
+    --success: #34d399;
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --bg-color: #111827;
+    --card-bg: #1f2937;
+    --border-color: #374151;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Proper flatpickr dark mode overrides instead of invert */
+  .flatpickr-calendar, .flatpickr-time, .flatpickr-calendar.hasTime .flatpickr-time {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: var(--shadow-lg) !important;
+  }
+  .flatpickr-calendar, .flatpickr-month, .flatpickr-weekdays, .flatpickr-weekday {
+    color: var(--text-main) !important;
+    background: var(--card-bg) !important;
+  }
+  .flatpickr-day, .flatpickr-time input, .flatpickr-time .flatpickr-am-pm {
+    color: var(--text-main) !important;
+  }
+  .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay, .flatpickr-day.flatpickr-disabled {
+    color: var(--text-muted) !important;
+  }
+  .flatpickr-day:hover, .flatpickr-day:focus, .flatpickr-time input:hover, .flatpickr-time input:focus, .flatpickr-time .flatpickr-am-pm:hover, .flatpickr-time .flatpickr-am-pm:focus {
+    background: var(--secondary) !important;
+    border-color: var(--secondary) !important;
+  }
+  .flatpickr-day.selected {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #ffffff !important;
+  }
+  
+  /* Ensure readonly inputs (like flatpickr fields) don't get faded out by the browser in dark mode */
+  input[readonly] {
+    color: var(--text-main) !important;
+    opacity: 1 !important;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -91,6 +143,11 @@ input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 .form-group {

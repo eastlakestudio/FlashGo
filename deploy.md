@@ -42,4 +42,5 @@ To function properly, FlashGo requires the following permissions:
 *   **`tabs`**: Required to automatically open the user-specified target URLs in new tabs when a scheduled task starts.
 *   **`sidePanel`**: Provides the main user interface for the extension, allowing users to configure, manage, and verify their automation tasks conveniently alongside their browsing context.
 *   **`notifications`**: Used to alert the user about the success, failure, or current status of their automated tasks, especially since tasks often run in the background.
+*   **`scripting`**: Necessary to dynamically execute small scripts directly in the main world context of the target webpage. This allows the extension to securely interact with advanced page-level APIs (such as experimental built-in AI features like `window.ai`) which are otherwise inaccessible from standard isolated content scripts.
 *   **`<all_urls>` (Host Permission)**: Required because users can create automation tasks (clicking sequences) for *any* website they choose. The extension needs to inject content scripts to interact with the DOM of user-specified web pages to perform the automated clicks.

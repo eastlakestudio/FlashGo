@@ -137,10 +137,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         let targetMs = null;
         if (t.scheduleType === 'recurring') {
-           // 由于 content.js 获取时已经是在执行期，当前时间可能比计算出的 next time 早几秒或晚几秒
-           // 对于循环任务，我们只要判断当前时间是否在其触发时间范围内容即可
-           // 这里简化处理：直接传回 task，由 content.js 执行
-           return true; 
+           if (!t.recurringDays || !t.recurringTime) return false;
+           const d = new Date();
+           if (!t.recurringDays.includes(d.getDay())) return false;
+           const [h, m] = t.recurringTime.split(':').map(Number);
+           d.setHours(h, m, 0, 0);
+           targetMs = d.getTime();
         } else {
            targetMs = t.targetTimeMs;
         }

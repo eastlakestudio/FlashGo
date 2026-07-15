@@ -242,6 +242,48 @@
     }
   }
 
+  let pickModeBadge = null;
+
+  function showPickBadge() {
+    if (pickModeBadge) return;
+    pickModeBadge = document.createElement('div');
+    pickModeBadge.style.cssText = `
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999999;
+      background: #4f46e5; color: white; padding: 10px 24px; border-radius: 8px; font-size: 14px;
+      font-weight: 600; font-family: sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.2); pointer-events: none;
+    `;
+    pickModeBadge.textContent = "FlashGo 连续拾取模式：点击元素添加，按 Esc 键退出";
+    document.body.appendChild(pickModeBadge);
+  }
+
+  function hidePickBadge() {
+    if (pickModeBadge) {
+      pickModeBadge.remove();
+      pickModeBadge = null;
+    }
+  }
+
+  function stopPicking() {
+    if (!isPicking) return;
+    isPicking = false;
+    if (pickingOverlay) {
+      pickingOverlay.remove();
+      pickingOverlay = null;
+    }
+    if (lastHighlightedEl) {
+      lastHighlightedEl.classList.remove('flashgo-picking-highlight');
+      lastHighlightedEl = null;
+    }
+    hidePickBadge();
+    document.removeEventListener('keydown', handlePickKeydown, true);
+  }
+
+  function handlePickKeydown(e) {
+    if (e.key === 'Escape') {
+      stopPicking();
+    }
+  }
+
   function handleOverlayClick(e) {
     if (!isPicking) return;
     e.preventDefault();
@@ -249,14 +291,19 @@
 
     pickingOverlay.style.pointerEvents = 'none';
     const el = document.elementFromPoint(e.clientX, e.clientY);
-    
-    if (lastHighlightedEl) lastHighlightedEl.classList.remove('flashgo-picking-highlight');
-    
-    isPicking = false;
-    pickingOverlay.remove();
-    pickingOverlay = null;
+    pickingOverlay.style.pointerEvents = 'auto';
 
     if (el) {
+      // 拾取成功视觉反馈（绿色闪烁）
+      const oldOutline = el.style.outline;
+      const oldTransition = el.style.transition;
+      el.style.transition = 'outline 0.1s ease';
+      el.style.outline = '4px solid #10b981';
+      setTimeout(() => {
+        el.style.outline = oldOutline;
+        el.style.transition = oldTransition;
+      }, 300);
+
       const selector = generateCssPath(el);
       chrome.runtime.sendMessage({ action: 'SELECTOR_PICKED', selector });
     }
@@ -270,6 +317,9 @@
     document.body.appendChild(pickingOverlay);
     pickingOverlay.addEventListener('mousemove', handleOverlayMouseMove, true);
     pickingOverlay.addEventListener('click', handleOverlayClick, true);
+    
+    document.addEventListener('keydown', handlePickKeydown, true);
+    showPickBadge();
   }
 
   async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
