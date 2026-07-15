@@ -76,11 +76,14 @@ function scheduleAllTasks() {
       }
 
       // Update Toolbar Icon Title (Tooltip)
-      let titleStr = `MiaoBuy 抢购助手\n总任务数：${totalTasks}\n待执行：${scheduledCount}\n已过期/失败：${expiredCount}`;
+      let titleStr = `🛒 MiaoBuy 抢购管家\n\n📊 任务概览：\n • 总任务数：${totalTasks}\n • 等待执行：${scheduledCount}\n • 已过期/失败：${expiredCount}`;
       if (nextTaskInfo) {
-        titleStr += `\n下次启动：${new Date(nextTaskInfo.time).toLocaleString()}\n任务：${nextTaskInfo.name}`;
+        // 格式化时间，去掉秒
+        const d = new Date(nextTaskInfo.time);
+        const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        titleStr += `\n\n⏰ 下次启动：\n 📅 时间：${timeStr}\n 🎯 任务：${nextTaskInfo.name}`;
       } else {
-        titleStr += `\n下次启动：无`;
+        titleStr += `\n\n⏰ 下次启动：\n 无待办任务`;
       }
       chrome.action.setTitle({ title: titleStr });
     });
