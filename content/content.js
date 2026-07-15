@@ -340,7 +340,15 @@
           const aiModel = window.ai?.languageModel || window.ai;
           if (aiModel) {
             let session = typeof aiModel.create === 'function' ? await aiModel.create() : await aiModel.createTextSession();
-            const prompt = `为以下网页内容起一个简短的抢购任务名称（如：抢购茅台、预约挂号、秒杀球鞋），限制在12个字以内，仅输出名称，不要输出多余解释。网页标题：${document.title}。网页内容摘要：${document.body.innerText.substring(0, 500)}`;
+            const prompt = `你是一个命名助手。请根据网页标题和摘要，提取最核心的品牌/商品/服务，生成一个简短的“抢购任务名称”。
+要求：
+1. 格式必须是：“[核心商品/服务名]抢购” 或 “[核心名]预约”。
+2. 例子：如果网页是智谱GLM的计划购买页，输出“智谱CodingPlan抢购”。
+3. 极度精简，限制在12个字符以内。
+4. 仅输出名称，绝不包含任何多余标点、符号或解释文字。
+
+网页标题：${document.title}
+网页摘要：${document.body.innerText.substring(0, 500)}`;
             let name = await session.prompt(prompt);
             name = name.replace(/["'\\[\\]\n]/g, '').trim();
             sendResponse({ name: name || document.title.substring(0, 15) });
