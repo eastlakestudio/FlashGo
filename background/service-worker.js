@@ -44,6 +44,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })();
     return true; 
+  } else if (message.action === 'NOTIFY_SUCCESS') {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', // Placeholder 1x1 image
+      title: '抢购大捷！',
+      message: message.text || '端侧 AI 判定：已为您成功抢到商品，请尽快前往付款！',
+      priority: 2
+    });
+    sendResponse({ success: true });
   }
 });
 

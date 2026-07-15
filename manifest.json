@@ -3,7 +3,7 @@
   "name": "MiaoBuy - 抢购助手",
   "version": "1.0.0",
   "description": "定时自动打开网页并高频点击按钮进行抢购。",
-  "permissions": ["storage", "alarms", "tabs", "sidePanel"],
+  "permissions": ["storage", "alarms", "tabs", "sidePanel", "notifications"],
   "host_permissions": ["<all_urls>"],
   "action": {},
   "side_panel": {

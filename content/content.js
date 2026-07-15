@@ -122,13 +122,58 @@
           }, delayMs);
           requestAnimationFrame(checkAndClick);
         } else {
-          console.log(`[MiaoBuy] 任务完美执行完毕！`);
-          updateState(0, 0);
-          chrome.storage.local.get('tasks', (data) => {
-            const tks = data.tasks || [];
-            const t = tks.find(x => x.id === activeTaskId);
-            if (t) { t.status = 'completed'; chrome.storage.local.set({ tasks: tks }); }
-          });
+          // 所有步骤点击完毕，进入校验阶段
+          console.log(`[MiaoBuy] 所有步骤点击完毕，准备使用 AI 校验结果...`);
+          setTimeout(async () => {
+            const pageText = document.body.innerText.substring(0, 3000); // 截取前3000字符
+            let isSuccess = false;
+
+            try {
+              // 尝试调用 Chrome 实验性端侧 AI
+              const aiModel = window.ai?.languageModel || window.ai;
+              if (aiModel) {
+                console.log(`[MiaoBuy] 检测到本地 AI，正在调用...`);
+                let session;
+                if (typeof aiModel.create === 'function') {
+                  session = await aiModel.create();
+                } else if (typeof aiModel.createTextSession === 'function') {
+                  session = await aiModel.createTextSession();
+                }
+                if (session) {
+                  const prompt = `根据以下网页文本，判断用户的抢购/下单是否成功？(成功特征：去支付、提交成功、订单号等；失败特征：售罄、拥挤、失败、重试、无货等)。\n请仅回答 YES 或 NO。\n\n文本：${pageText}`;
+                  const result = await session.prompt(prompt);
+                  console.log(`[MiaoBuy] AI 判断结果:`, result);
+                  if (result.toUpperCase().includes('YES')) {
+                    isSuccess = true;
+                  }
+                }
+              } else {
+                console.log(`[MiaoBuy] 未检测到本地 AI，使用降级逻辑判定。`);
+                // 降级：正则匹配
+                if (/(成功|去支付|订单|付款|支付|提交完成)/i.test(pageText) && !/(售罄|无货|拥挤|失败|重试|报错)/i.test(pageText)) {
+                  isSuccess = true;
+                }
+              }
+            } catch (err) {
+              console.error(`[MiaoBuy] AI 校验报错，降级处理。`, err);
+            }
+
+            if (isSuccess) {
+              console.log(`[MiaoBuy] 校验通过！任务完美执行完毕！`);
+              updateState(0, 0);
+              chrome.storage.local.get('tasks', (data) => {
+                const tks = data.tasks || [];
+                const t = tks.find(x => x.id === activeTaskId);
+                if (t) { t.status = 'completed'; chrome.storage.local.set({ tasks: tks }); }
+              });
+              // 呼叫后台弹出系统通知
+              chrome.runtime.sendMessage({ action: 'NOTIFY_SUCCESS' });
+            } else {
+              console.log(`[MiaoBuy] 校验未通过（疑似失败/拥挤），触发重试机制！`);
+              currentStepIndex = selectors.length; // 使得 handleFailure 认为我们在最后一步超时
+              handleFailure();
+            }
+          }, 2000); // 额外等待 2 秒让结果渲染
         }
       } else {
         requestAnimationFrame(checkAndClick);
