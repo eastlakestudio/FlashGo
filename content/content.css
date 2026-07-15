@@ -1,0 +1,39 @@
+.miaobuy-picking-highlight {
+  outline: 3px dashed #ef4444 !important;
+  outline-offset: -2px !important;
+  cursor: crosshair !important;
+}
+
+#miaobuy-simulated-cursor {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  z-index: 2147483647; /* Max z-index */
+  pointer-events: none;
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.miaobuy-ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  width: 40px;
+  height: 40px;
+  top: -10px;
+  left: -10px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2147483646;
+  animation: miaobuyRippleAnim 0.6s ease-out;
+}
+
+@keyframes miaobuyRippleAnim {
+  0% {
+    transform: scale(0.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
