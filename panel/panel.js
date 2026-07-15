@@ -140,6 +140,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function getNextRecurringTime(recurringTimeStr, recurringDaysArr) {
+    if (!recurringTimeStr || !recurringDaysArr || recurringDaysArr.length === 0) return null;
+    const [hours, minutes] = recurringTimeStr.split(':').map(Number);
+    const now = new Date();
+    for (let i = 0; i <= 7; i++) {
+      const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+      const dayOfWeek = d.getDay();
+      if (recurringDaysArr.includes(dayOfWeek)) {
+        const candidate = new Date(d);
+        candidate.setHours(hours, minutes, 0, 0);
+        if (candidate.getTime() > now.getTime()) {
+          return candidate.getTime();
+        }
+      }
+    }
+    return null;
+  }
+
   function loadTasks() {
     chrome.storage.local.get('tasks', (data) => {
       const tasks = data.tasks || [];
@@ -166,12 +184,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (task.status === 'failed') { statusText = '已失败'; statusClass = 'status-failed'; }
 
         let timeText = '未设置时间';
+        let nextRunText = '';
+        
         if (task.scheduleType === 'recurring') {
           const daysMap = ['日','一','二','三','四','五','六'];
           const daysStr = (task.recurringDays || []).map(d => daysMap[d]).join('、');
           timeText = `每周${daysStr} ${task.recurringTime || ''} 循环`;
+          
+          if (task.status === 'scheduled') {
+            const nextMs = getNextRecurringTime(task.recurringTime, task.recurringDays);
+            if (nextMs) {
+              nextRunText = `<div style="color:var(--primary); font-weight: 500; margin-top: 4px;">🚀 下次执行: ${new Date(nextMs).toLocaleString()}</div>`;
+            }
+          }
         } else if (task.targetTimeMs) {
           timeText = new Date(task.targetTimeMs).toLocaleString();
+          if (task.status === 'scheduled') {
+             if (task.targetTimeMs > Date.now()) {
+                nextRunText = `<div style="color:var(--primary); font-weight: 500; margin-top: 4px;">🚀 下次执行: ${new Date(task.targetTimeMs).toLocaleString()}</div>`;
+             } else {
+                nextRunText = `<div style="color:var(--danger); font-weight: 500; margin-top: 4px;">⚠️ 任务已过期</div>`;
+             }
+          }
         }
 
         card.innerHTML = `
@@ -180,7 +214,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="task-status ${statusClass}">${statusText}</div>
           </div>
           <div class="task-url-sub">${task.url}</div>
-          <div class="task-details" style="margin-top: 8px;">时间: ${timeText} | 步骤: ${task.selectors.length}</div>
+          <div class="task-details" style="margin-top: 8px;">
+            <span>时间: ${timeText} | 步骤: ${task.selectors.length}</span>
+            ${nextRunText}
+          </div>
           <div class="task-actions">
             <button class="icon-btn btn-edit" title="编辑">✏️ 编辑</button>
             <button class="icon-btn danger btn-delete" title="删除">🗑️ 删除</button>
