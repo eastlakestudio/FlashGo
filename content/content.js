@@ -164,9 +164,15 @@
               chrome.storage.local.get('tasks', (data) => {
                 const tks = data.tasks || [];
                 const t = tks.find(x => x.id === activeTaskId);
-                if (t) { t.status = 'completed'; chrome.storage.local.set({ tasks: tks }); }
+                if (t) {
+                  if (t.scheduleType === 'once' || !t.scheduleType) {
+                    t.status = 'completed'; 
+                  }
+                  // 如果是 recurring，则维持 scheduled 状态，由后台重新排期
+                  chrome.storage.local.set({ tasks: tks }); 
+                }
               });
-              // 呼叫后台弹出系统通知
+              // 呼叫后台弹出系统通知（并触发重新排期）
               chrome.runtime.sendMessage({ action: 'NOTIFY_SUCCESS' });
             } else {
               console.log(`[MiaoBuy] 校验未通过（疑似失败/拥挤），触发重试机制！`);
