@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 强制修复扩展侧边栏中 Flatpickr 时间滚轮失效的问题
+  document.addEventListener('wheel', (e) => {
     if (e.target.classList.contains('flatpickr-hour') || e.target.classList.contains('flatpickr-minute')) {
       e.preventDefault();
       const isUp = e.deltaY < 0;
@@ -222,9 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const tasks = data.tasks || [];
       tasksContainer.innerHTML = '';
       if (tasks.length === 0) {
-        tasksContainer.innerHTML = '<div style="color:var(--text-muted); font-size: 13px; text-align: center; margin-top: 40px;">暂无抢购任务，点击"新建任务"开始</div>';
+        tasksContainer.innerHTML = `<div class="empty-state">${chrome.i18n.getMessage('noTasks')}</div>`;
         return;
-      
+      }
       // Sort: scheduled first, then draft, then completed/failed
       tasks.sort((a, b) => {
         const order = { 'scheduled': 0, 'draft': 1, 'failed': 2, 'completed': 3 };
