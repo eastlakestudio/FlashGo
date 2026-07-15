@@ -165,4 +165,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderSteps();
     }
   });
+
+  // Automatically update the URL input to the current active tab's URL
+  async function updateUrlToCurrentTab() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.url && !tab.url.startsWith('chrome://')) {
+        urlInput.value = tab.url;
+      }
+    } catch (err) {}
+  }
+
+  // Initial update
+  updateUrlToCurrentTab();
+
+  // Update on tab switch
+  chrome.tabs.onActivated.addListener(() => {
+    updateUrlToCurrentTab();
+  });
+
+  // Update on tab navigation
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (tab.active && changeInfo.url && !changeInfo.url.startsWith('chrome://')) {
+      urlInput.value = changeInfo.url;
+    }
+  });
 });
