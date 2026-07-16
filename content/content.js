@@ -276,6 +276,9 @@
     }
     hidePickBadge();
     document.removeEventListener('keydown', handlePickKeydown, true);
+    
+    // Notify panel that picking has stopped
+    chrome.runtime.sendMessage({ action: 'PICKING_STOPPED' });
   }
 
   function handlePickKeydown(e) {
@@ -438,6 +441,9 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'START_PICKING') {
       startPicking();
+      sendResponse({ success: true });
+    } else if (message.action === 'STOP_PICKING') {
+      stopPicking();
       sendResponse({ success: true });
     } else if (message.action === 'VERIFY_SEQUENCE') {
       verifySequence(message.selectors, message.delayMs || 600);

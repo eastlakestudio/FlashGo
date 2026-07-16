@@ -431,3 +431,15 @@ input:checked + .slider:before { transform: translateX(20px); }
 .flatpickr-time .numInputWrapper span:hover {
   background: var(--secondary) !important;
 }
+
+/* Active picking button highlight */
+.btn-picking-active {
+  background-color: var(--success) !important;
+  color: white !important;
+  border-color: var(--success) !important;
+}
+.btn-picking-active:hover {
+  background-color: var(--success) !important;
+  opacity: 0.9 !important;
+}
+

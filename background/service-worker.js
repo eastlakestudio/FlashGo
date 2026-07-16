@@ -1,9 +1,25 @@
 // Polyfill for alarms if needed
 const ALARM_PREFIX = 'flashgo-task-';
 
+function parseRecurringTime(recurringTimeStr) {
+  if (!recurringTimeStr) return { hours: 0, minutes: 0 };
+  const isPM = /pm/i.test(recurringTimeStr);
+  const isAM = /am/i.test(recurringTimeStr);
+  const cleanStr = recurringTimeStr.replace(/[a-zA-Z]/g, '').trim();
+  let [hours, minutes] = cleanStr.split(':').map(Number);
+  if (isNaN(hours)) hours = 0;
+  if (isNaN(minutes)) minutes = 0;
+  if (isPM && hours < 12) {
+    hours += 12;
+  } else if (isAM && hours === 12) {
+    hours = 0;
+  }
+  return { hours, minutes };
+}
+
 function getNextRecurringTime(recurringTimeStr, recurringDaysArr) {
   if (!recurringTimeStr || !recurringDaysArr || recurringDaysArr.length === 0) return null;
-  const [hours, minutes] = recurringTimeStr.split(':').map(Number);
+  const { hours, minutes } = parseRecurringTime(recurringTimeStr);
   const now = new Date();
   
   for (let i = 0; i <= 7; i++) {
@@ -140,7 +156,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
            if (!t.recurringDays || !t.recurringTime) return false;
            const d = new Date();
            if (!t.recurringDays.includes(d.getDay())) return false;
-           const [h, m] = t.recurringTime.split(':').map(Number);
+           const { hours: h, minutes: m } = parseRecurringTime(t.recurringTime);
            d.setHours(h, m, 0, 0);
            targetMs = d.getTime();
         } else {
@@ -157,7 +173,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 如果是单次任务，直接传递 targetTimeMs，若是循环任务，需根据当前时间推算今日的目标毫秒数供 content 等待
         let exactTargetMs = activeTask.targetTimeMs;
         if (activeTask.scheduleType === 'recurring' && activeTask.recurringTime) {
-           const [h, m] = activeTask.recurringTime.split(':').map(Number);
+           const { hours: h, minutes: m } = parseRecurringTime(activeTask.recurringTime);
            const d = new Date();
            d.setHours(h, m, 0, 0);
            exactTargetMs = d.getTime();

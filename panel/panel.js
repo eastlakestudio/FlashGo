@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fpRecurringTime = flatpickr(recurringTimeInput, {
         enableTime: true,
         noCalendar: true,
-        dateFormat: "H:i",
+        dateFormat: "h:i K",
         time_24hr: false,
         onChange: checkFormChanged
       });
@@ -89,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectors = [];
   let scheduleType = 'once';
   let recurringDays = [];
+  let isPickingModeActive = false;
+  let activePickingTabId = null;
 
   // Tab switching logic
   function setScheduleType(type) {
@@ -249,9 +251,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function parseRecurringTime(recurringTimeStr) {
+    if (!recurringTimeStr) return { hours: 0, minutes: 0 };
+    const isPM = /pm/i.test(recurringTimeStr);
+    const isAM = /am/i.test(recurringTimeStr);
+    const cleanStr = recurringTimeStr.replace(/[a-zA-Z]/g, '').trim();
+    let [hours, minutes] = cleanStr.split(':').map(Number);
+    if (isNaN(hours)) hours = 0;
+    if (isNaN(minutes)) minutes = 0;
+    if (isPM && hours < 12) {
+      hours += 12;
+    } else if (isAM && hours === 12) {
+      hours = 0;
+    }
+    return { hours, minutes };
+  }
+
   function getNextRecurringTime(recurringTimeStr, recurringDaysArr) {
     if (!recurringTimeStr || !recurringDaysArr || recurringDaysArr.length === 0) return null;
-    const [hours, minutes] = recurringTimeStr.split(':').map(Number);
+    const { hours, minutes } = parseRecurringTime(recurringTimeStr);
     const now = new Date();
     for (let i = 0; i <= 7; i++) {
       const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
@@ -518,7 +536,28 @@ document.addEventListener('DOMContentLoaded', () => {
     return { tab: targetTab, isNewlyCreated };
   }
 
-  startPickingBtn.addEventListener('click', async () => {
+  async function stopPickingMode() {
+    if (!isPickingModeActive) return;
+    isPickingModeActive = false;
+    startPickingBtn.classList.remove('btn-picking-active');
+    if (activePickingTabId) {
+      try {
+        await chrome.tabs.sendMessage(activePickingTabId, { action: 'STOP_PICKING' });
+      } catch (e) {
+        // Tab might be closed or content script not injected
+      }
+    }
+    activePickingTabId = null;
+    showStatus('', '');
+  }
+
+  startPickingBtn.addEventListener('click', async (e) => {
+    e.stopPropagation(); // Avoid triggering document click handler immediately
+    if (isPickingModeActive) {
+      await stopPickingMode();
+      return;
+    }
+
     if (!urlInput.value.trim()) { showStatus(chrome.i18n.getMessage('pleaseInputUrl'), 'var(--danger)'); return; }
     showStatus(chrome.i18n.getMessage('switchTarget'), 'var(--text-muted)');
     const result = await getOrActivateTargetTab();
@@ -526,9 +565,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       await chrome.tabs.sendMessage(result.tab.id, { action: 'START_PICKING' });
+      isPickingModeActive = true;
+      activePickingTabId = result.tab.id;
+      startPickingBtn.classList.add('btn-picking-active');
       showStatus(chrome.i18n.getMessage('pickTargetElement'), 'var(--success)');
     } catch (err) {
       showStatus(chrome.i18n.getMessage('pickError'), 'var(--danger)');
+      isPickingModeActive = false;
+      activePickingTabId = null;
+      startPickingBtn.classList.remove('btn-picking-active');
     }
   });
 
@@ -538,6 +583,32 @@ document.addEventListener('DOMContentLoaded', () => {
       renderSteps();
       checkFormChanged();
       showStatus(chrome.i18n.getMessage('stepAdded', [selectors.length]), 'var(--success)');
+    } else if (message.action === 'PICKING_STOPPED') {
+      isPickingModeActive = false;
+      activePickingTabId = null;
+      startPickingBtn.classList.remove('btn-picking-active');
+      showStatus('', '');
+    }
+  });
+
+  // Automatically stop picking mode when user changes active tab
+  chrome.tabs.onActivated.addListener((activeInfo) => {
+    if (isPickingModeActive && activeInfo.tabId !== activePickingTabId) {
+      stopPickingMode();
+    }
+  });
+
+  // Automatically stop picking mode when active window focus changes
+  chrome.windows.onFocusChanged.addListener((windowId) => {
+    if (isPickingModeActive) {
+      stopPickingMode();
+    }
+  });
+
+  // Automatically stop picking mode when clicking outside the button in the side panel
+  document.addEventListener('click', (e) => {
+    if (isPickingModeActive && !startPickingBtn.contains(e.target)) {
+      stopPickingMode();
     }
   });
 
